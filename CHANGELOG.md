@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased — local extraction
+## v0.1.0 — 2026-11-07
+
+First public release, published at https://github.com/thamouda/deskboard.nvim.
 
 - Four Snacks panels, fixed frames and shared inline clock headers.
 - Optional Jira/GitLab providers and synthetic offline demo data.
@@ -9,5 +11,4 @@
 - Explicit opt-ins for note writes, checkout, pipelines and Jira edits.
 - Isolated regression tests, lifecycle/default-safety tests, and real Snacks/lazy smoke tests.
 
-No public release or remote repository has been created. Linux/Neovim 0.11.6 is
-locally exercised; platform/version claims must follow CI before publication.
+Linux/Neovim 0.11.6 is exercised in CI; Windows support is not claimed.
