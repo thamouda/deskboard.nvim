@@ -1,0 +1,47 @@
+*workbench.txt*  A local-first dashboard workbench for Neovim
+
+CONTENTS                                                     *workbench*
+  Setup                 |workbench-setup|
+  Commands              |workbench-commands|
+  Safety                |workbench-safety|
+
+SETUP                                                  *workbench-setup*
+Requires Neovim 0.11+ and snacks.nvim. Lua API:
+>
+  require("workbench").setup({ demo = true })
+  require("workbench").sections(dashboard) -- Snacks section factory
+  require("workbench").open()
+  require("workbench").dispose()
+<
+Configure the section factory in Snacks dashboard opts, with Workbench as a
+Snacks dependency. Do not call Snacks.setup() from Workbench setup.
+Default providers and notes writes are disabled. See README.md for full options.
+
+COMMANDS                                             *workbench-commands*
+:Workbench                   Open the dashboard
+:WorkbenchRefresh            Refresh active panel
+:checkhealth workbench        Dependency/configuration checks (no API calls)
+:WorkbenchNotesNew            New structured note (requires writes opt-in)
+:WorkbenchNotesStatus         Change local note status
+:WorkbenchNotesReviewed       Mark locally reviewed, with confirmation
+:WorkbenchNotesVisibility     Set private/team visibility
+:WorkbenchNotesSearch         Literal local full-text search
+:WorkbenchNotesIndex          Retry safe index updates
+:WorkbenchNotesDelete         Confirm recoverable local trash move
+:WorkbenchNotesAssignID       Confirm new NOTE ID; retain previous_id
+:WorkbenchNotesBrowser        Local Markdown browser preview
+
+Dashboard keys: Tab/S-Tab panels; [p/]p pages; ! status; R refresh.
+Reviews: a author filter, A clear. Notes: C category, S status, t tag, Q queue,
+A clear, F search, K/P details. Writable actions: + new, M status, v reviewed,
+V visibility, D delete; all require notes.allow_writes=true. B browser is optional.
+
+SAFETY                                                 *workbench-safety*
+Nothing is published to Confluence. Remote providers require explicit enablement.
+No credential helper or private note root is chosen by default. Workflow edits
+stay in the buffer until :w; deletion uses local trash and confirmation. Existing
+note IDs and old high-water reservations must be preserved during migration.
+Git checkout, pipeline and Jira-edit actions require separate explicit opt-ins.
+Demo mode must remain offline/read-only. See README.md for details and limitations.
+
+vim:tw=78:ts=2:ft=help:norl:

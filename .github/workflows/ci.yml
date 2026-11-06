@@ -1,0 +1,43 @@
+name: test
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        neovim: [v0.11.6, stable]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: ${{ matrix.neovim }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Lua unit and isolated regression tests
+        run: |
+          for test in tests/*.lua; do
+            nvim --headless -u NONE -i NONE -l "$test" || exit 1
+          done
+      - name: Python provider fixtures (no network)
+        run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -p 'test_*.py'
+      - name: Install tested public smoke dependencies (no credentials)
+        run: |
+          git init "$RUNNER_TEMP/snacks.nvim"
+          git -C "$RUNNER_TEMP/snacks.nvim" remote add origin https://github.com/folke/snacks.nvim.git
+          git -C "$RUNNER_TEMP/snacks.nvim" fetch --depth=1 origin 882c996cf28183f4d63640de0b4c02ec886d01f2
+          git -C "$RUNNER_TEMP/snacks.nvim" checkout FETCH_HEAD
+          git init "$RUNNER_TEMP/lazy.nvim"
+          git -C "$RUNNER_TEMP/lazy.nvim" remote add origin https://github.com/folke/lazy.nvim.git
+          git -C "$RUNNER_TEMP/lazy.nvim" fetch --depth=1 origin 85c7ff3711b730b4030d03144f6db6375044ae82
+          git -C "$RUNNER_TEMP/lazy.nvim" checkout FETCH_HEAD
+      - name: Real Snacks and lazy.nvim smoke
+        env:
+          WORKBENCH_SNACKS: ${{ runner.temp }}/snacks.nvim
+          WORKBENCH_LAZY: ${{ runner.temp }}/lazy.nvim
+        run: |
+          nvim --headless -u NONE -i NONE -l tests/smoke-snacks.lua
+          nvim --headless -u NONE -i NONE -l tests/smoke-lazy.lua

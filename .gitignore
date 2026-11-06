@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*.log
+*.swp
+*.swo
+.DS_Store
+.env
+.env.*
+.cache/
+.state/
+.trash/
+.notes/
+lazy-lock.json

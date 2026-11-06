@@ -1,0 +1,50 @@
+{
+  "base": {
+    "state": "opened",
+    "draft": false,
+    "detailed_merge_status": "mergeable",
+    "merge_status": "can_be_merged",
+    "has_conflicts": false,
+    "blocking_discussions_resolved": true,
+    "head_pipeline": {"status": "success"}
+  },
+  "readiness": [
+    {"name": "all checks and approval policy passed", "mr": {}, "approvals": {"approved": true, "approvals_left": 0}, "expected": "yes"},
+    {"name": "zero approvals required", "mr": {}, "approvals": {"approved_by": [], "approvals_left": 0}, "expected": "yes"},
+    {"name": "votes alone cannot establish approval rules", "mr": {}, "approvals": {"approved_by": [{"user": {"id": 1}}, {"user": {"id": 2}}]}, "expected": "unknown"},
+    {"name": "required approver missing despite votes", "mr": {}, "approvals": {"approved_by": [{"user": {"id": 1}}], "approvals_left": 1}, "expected": "approvals"},
+    {"name": "overall approval verdict rejected", "mr": {}, "approvals": {"approved": false, "approvals_left": 0}, "expected": "approvals"},
+    {"name": "detailed checks override stale approval response", "mr": {"detailed_merge_status": "not_approved"}, "approvals": {"approved": true, "approvals_left": 0}, "expected": "approvals"},
+    {"name": "checking is not ready", "mr": {"detailed_merge_status": "checking"}, "approvals": {"approved": true}, "expected": "checking"},
+    {"name": "approval synchronization is not ready", "mr": {"detailed_merge_status": "approvals_syncing"}, "approvals": {"approved": true}, "expected": "checking"},
+    {"name": "required pipeline failed", "mr": {"detailed_merge_status": "ci_must_pass"}, "approvals": {"approved": true}, "expected": "ci"},
+    {"name": "required pipeline running", "mr": {"detailed_merge_status": "ci_still_running"}, "approvals": {"approved": true}, "expected": "ci"},
+    {"name": "GitLab permits optional failed pipeline", "mr": {"head_pipeline": {"status": "failed"}}, "approvals": {"approved": true}, "expected": "yes"},
+    {"name": "legacy merge status does not establish readiness", "mr": {"detailed_merge_status": null}, "approvals": {"approved": true}, "expected": "unknown"},
+    {"name": "missing approvals are unknown", "mr": {}, "approvals": null, "expected": "unknown"},
+    {"name": "malformed approvals are unknown", "mr": {}, "approvals": {}, "expected": "unknown"},
+    {"name": "boolean approvals_left is not numeric zero", "mr": {}, "approvals": {"approvals_left": false}, "expected": "unknown"},
+    {"name": "negative approvals_left is unknown", "mr": {}, "approvals": {"approvals_left": -1}, "expected": "unknown"},
+    {"name": "merged is not ready again", "mr": {"state": "merged", "target_branch": "release/6.0", "detailed_merge_status": "not_open"}, "approvals": null, "expected": "merged"},
+    {"name": "closed is not merged", "mr": {"state": "closed"}, "approvals": {"approved": true}, "expected": "closed"},
+    {"name": "draft is not ready", "mr": {"draft": true}, "approvals": {"approved": true}, "expected": "draft"},
+    {"name": "legacy WIP is not ready", "mr": {"work_in_progress": true}, "approvals": {"approved": true}, "expected": "draft"},
+    {"name": "conflicts override mergeable", "mr": {"has_conflicts": true}, "approvals": {"approved": true}, "expected": "conflict"},
+    {"name": "blocking discussions override mergeable", "mr": {"blocking_discussions_resolved": false}, "approvals": {"approved": true}, "expected": "threads"},
+    {"name": "no merge permission", "mr": {"user": {"can_merge": false}}, "approvals": {"approved": true}, "expected": "permissions"},
+    {"name": "changes requested", "mr": {"detailed_merge_status": "requested_changes"}, "approvals": {"approved": true}, "expected": "changes"},
+    {"name": "rebase needed", "mr": {"detailed_merge_status": "need_rebase"}, "approvals": {"approved": true}, "expected": "rebase"},
+    {"name": "other GitLab checks block", "mr": {"detailed_merge_status": "status_checks_must_pass"}, "approvals": {"approved": true}, "expected": "blocked"},
+    {"name": "unknown MR state", "mr": {"state": null}, "approvals": {"approved": true}, "expected": "unknown"}
+  ],
+  "approval_counts": [
+    {"name": "distinct people", "data": {"approved_by": [{"user": {"id": 1}}, {"user": {"id": 2}}, {"user": {"id": 1}}]}, "expected": 2},
+    {"name": "no votes", "data": {"approved_by": []}, "expected": 0},
+    {"name": "missing data", "data": null, "expected": null},
+    {"name": "missing approved_by", "data": {}, "expected": null},
+    {"name": "invalid approved_by object", "data": {"approved_by": {}}, "expected": null},
+    {"name": "missing user", "data": {"approved_by": [{}]}, "expected": null},
+    {"name": "missing identity", "data": {"approved_by": [{"user": {}}]}, "expected": null},
+    {"name": "username fallback", "data": {"approved_by": [{"user": {"username": "alice"}}]}, "expected": 1}
+  ]
+}

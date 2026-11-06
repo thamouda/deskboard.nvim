@@ -1,0 +1,46 @@
+-- Default/runtime contract. NEVER source the permissive regression bootstrap.
+vim.opt.rtp:prepend(vim.fn.getcwd())
+local core = require("workbench")
+local cfg = require("workbench.config")
+local system, jobstart, systemlist, mkdir = vim.system, vim.fn.jobstart, vim.fn.systemlist, vim.uv.fs_mkdir
+local calls = 0
+local function forbidden() calls = calls + 1; error("Unexpected process/filesystem mutation in default setup") end
+vim.system, vim.fn.jobstart, vim.fn.systemlist, vim.uv.fs_mkdir = forbidden, forbidden, forbidden, forbidden
+local ok, err = xpcall(function()
+  core.setup()
+  assert(not cfg.get().providers.jira.enabled and not cfg.get().providers.gitlab.enabled and not cfg.writable())
+  assert(next(require("workbench.notes").roots()) == nil)
+  assert(not pcall(cfg.set, { notes = { enabled = true, allow_writes = "false" } }))
+  assert(not cfg.writable(), "Invalid booleans must not enable writes or install partial config")
+  assert(vim.fn.exists(":Workbench") == 2 and vim.fn.exists(":WorkbenchNotesNew") == 2)
+  assert(vim.fn.exists(":NotesNew") == 0)
+  local owner = { buf = vim.api.nvim_get_current_buf(), win = vim.api.nvim_get_current_win(), opts = {}, find = function() end }
+  local sections = core.sections(owner)
+  assert(#sections > 0)
+  local state = require("workbench.views").get({ buf = owner.buf })
+  state:switch("reviews"); assert(not state.loading)
+  assert(not state:refresh())
+  state:switch("notes"); state:switch("reminders")
+  assert(not require("workbench.note_actions").edit({ kind = "file" }, { status = "ready" }))
+  assert(not require("workbench.note_actions").create({ title = "Must not create" }))
+  assert(not require("workbench.note_ids").next())
+  assert(not require("workbench.sync").refresh())
+  core.setup({ demo = true })
+  assert(#core.sections(owner) > 0)
+  local first = require("workbench.views").get({ buf = owner.buf })
+  local other = vim.api.nvim_create_buf(false, true)
+  local second = require("workbench.views").get({ buf = other })
+  assert(first ~= second, "Dashboard buffers must not share mutable view state")
+  core.setup({ providers = { jira = { enabled = true, auto_refresh = true } } })
+  if vim.v.vim_did_enter == 0 then vim.api.nvim_exec_autocmds("VimEnter", { group = "workbench_sync" }) end
+  core.dispose(); core.dispose()
+  vim.wait(350, function() return false end)
+  assert(calls == 0, "Disposed startup must never revive a provider request")
+  core.setup()
+  core.dispose()
+  assert(calls == 0)
+end, debug.traceback)
+vim.system, vim.fn.jobstart, vim.fn.systemlist, vim.uv.fs_mkdir = system, jobstart, systemlist, mkdir
+core.dispose()
+assert(ok, err)
+print("PASS: default setup is offline/read-only/idempotent; state and lifecycle are isolated")
