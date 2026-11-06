@@ -2,7 +2,7 @@ dofile("tests/support/bootstrap.lua")
 -- Run: nvim --headless -u NONE -l tests/sprint-sync.lua
 -- Disposable files and mocked commands only: never runs the real sync script.
 vim.opt.rtp:prepend(vim.fn.getcwd())
-local sync = require("workbench.sync")
+local sync = require("deskboard.sync")
 local root, count, serial = vim.fn.tempname() .. " sync tests", 0, 0
 vim.fn.mkdir(root, "p")
 vim.notify = function() end
@@ -218,14 +218,14 @@ local ok, err = xpcall(function()
     assert(vim.fn.exists(":SprintBoardRefresh") == 2)
     vim.cmd("SprintBoardRefresh")
     assert(calls == 1)
-    assert(#vim.api.nvim_get_autocmds({ group = "workbench_sync", event = "VimLeavePre" }) == 1)
+    assert(#vim.api.nvim_get_autocmds({ group = "deskboard_sync", event = "VimLeavePre" }) == 1)
     vim.wait(350, function()
       return false
     end, 10)
     -- Explicit cleanup before restoring the real function; no deferred startup
     -- callback in this -l test is permitted to reach the actual script.
     vim.api.nvim_exec_autocmds("VimLeavePre", {})
-    vim.api.nvim_del_augroup_by_name("workbench_sync")
+    vim.api.nvim_del_augroup_by_name("deskboard_sync")
     sync.refresh = original
   end)
 end, debug.traceback)

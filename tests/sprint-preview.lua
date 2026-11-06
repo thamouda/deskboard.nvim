@@ -2,7 +2,7 @@ dofile("tests/support/bootstrap.lua")
 -- Run: nvim --headless -u NONE -l tests/sprint-preview.lua
 -- Mocked Jira/GitLab responses only; uses real scratch buffers/windows.
 vim.opt.rtp:prepend(vim.fn.getcwd())
-local preview = require("workbench.preview")
+local preview = require("deskboard.preview")
 local count = 0
 vim.notify = function() end
 local function test(name, fn)

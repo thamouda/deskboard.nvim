@@ -2,7 +2,7 @@
 -- Pure rendering: the existing dashboard minute refresh keeps the clock live.
 local M = {}
 local width = vim.api.nvim_strwidth
-local prefix = "Workbench"
+local prefix = "Deskboard"
 
 local function chunk(text, hl)
   return { text, hl = prefix .. hl }

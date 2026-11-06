@@ -3,9 +3,9 @@
 vim.opt.rtp:prepend(vim.fn.getcwd())
 -- Synthetic optional manager stats for legacy section assertions.
 package.loaded["lazy"] = { stats = function() return { count = 0, loaded = 0, startuptime = 0 } end }
-local sandbox = vim.fn.tempname() .. " workbench fixture"
+local sandbox = vim.fn.tempname() .. " deskboard fixture"
 vim.fn.mkdir(sandbox, "p")
-require("workbench.config").set({
+require("deskboard.config").set({
   providers = { jira = { enabled = true, snapshot = sandbox .. "/reminder.md", state_file = sandbox .. "/sync.json" },
     gitlab = { enabled = true, host = "gitlab.example.invalid", project = "team/repo" } },
   reminders = { path = sandbox .. "/reminder.md" },

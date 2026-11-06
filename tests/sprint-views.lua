@@ -2,8 +2,8 @@ dofile("tests/support/bootstrap.lua")
 -- Run: nvim --headless -u NONE -l tests/sprint-views.lua
 -- Mocked review requests only; no real Jira, GitLab, checkout, or credential calls.
 vim.opt.rtp:prepend(vim.fn.getcwd())
-local views = require("workbench.views")
-local board = require("workbench.board")
+local views = require("deskboard.views")
+local board = require("deskboard.board")
 local count = 0
 local function test(name, fn)
   fn()
@@ -225,11 +225,11 @@ test("review columns show compact target, threads, CI, unique approvals and my t
   assert(not value:find("feature/TEST-1824_relations", 1, true))
   assert(rows[1].text[2][1] == "!1" and rows[1].text[4][1] == "TEST-420")
   assert(rows[1].text[6][1] == "repo" and rows[1].mr_project == "team/repo")
-  assert(rows[1].text[14][1] == "1/3" and rows[1].text[14].hl == "WorkbenchWarning")
-  assert(rows[1].text[16][1] == "✓ pass" and rows[1].text[16].hl == "WorkbenchSuccess")
-  assert(rows[2].text[16][1] == "✗ fail" and rows[2].text[16].hl == "WorkbenchError")
+  assert(rows[1].text[14][1] == "1/3" and rows[1].text[14].hl == "DeskboardWarning")
+  assert(rows[1].text[16][1] == "✓ pass" and rows[1].text[16].hl == "DeskboardSuccess")
+  assert(rows[2].text[16][1] == "✗ fail" and rows[2].text[16].hl == "DeskboardError")
   assert(rows[1].text[18][1] == "— (0)" and rows[2].text[18][1] == "✓ (1)")
-  assert(rows[1].text[20][1] == "0/1" and rows[1].text[20].hl == "WorkbenchWarning")
+  assert(rows[1].text[20][1] == "0/1" and rows[1].text[20].hl == "DeskboardWarning")
   assert(rows[1].review_metrics.my_threads.total == 1)
   assert(not value:find("TITLE", 1, true) and not value:find("full title", 1, true) and not value:find("Draft:", 1, true))
   contains(value, "Metadata incomplete")
@@ -257,12 +257,12 @@ test("unknown review metadata never becomes zero, all-clear or passed", function
   state.rows[3].ci = "running"
   local rows = actionable(board.render_reviews({ state = state, width = 124 }))
   for _, index in ipairs({ 14, 16, 20 }) do
-    assert(rows[1].text[index][1] == "?" and rows[1].text[index].hl == "WorkbenchMuted")
+    assert(rows[1].text[index][1] == "?" and rows[1].text[index].hl == "DeskboardMuted")
   end
-  assert(rows[1].text[18][1] == "? (?)" and rows[1].text[18].hl == "WorkbenchMuted")
+  assert(rows[1].text[18][1] == "? (?)" and rows[1].text[18].hl == "DeskboardMuted")
   assert(rows[2].text[14][1] == "0/0" and rows[2].text[16][1] == "—" and rows[2].text[18][1] == "— (0)")
-  assert(rows[3].text[14][1] == "2/2" and rows[3].text[14].hl == "WorkbenchSuccess")
-  assert(rows[3].text[16].hl == "WorkbenchWarning" and rows[3].text[20][1] == "1/1")
+  assert(rows[3].text[14][1] == "2/2" and rows[3].text[14].hl == "DeskboardSuccess")
+  assert(rows[3].text[16].hl == "DeskboardWarning" and rows[3].text[20][1] == "1/1")
 end)
 
 test("malformed review statistics are rejected before replacing the cached queue", function()
@@ -350,7 +350,7 @@ test("notes show ID/title/status/category without bodies or ticket/MR actions", 
 end)
 
 test("MR-only preview never requests Jira and renders MR details without a fake ticket", function()
-  local preview = require("workbench.preview")
+  local preview = require("deskboard.preview")
   local calls, result = {}, nil
   preview.fetch({ mr_iid = "12", host = "gitlab.example.invalid", project = "team/repo", env = { GITLAB_TOKEN = "fixture" },
     run = function(cmd, _, done)
@@ -368,7 +368,7 @@ test("MR-only preview never requests Jira and renders MR details without a fake 
 end)
 
 test("MR-only popups load without tickets and cache identical iids by project", function()
-  local preview = require("workbench.preview")
+  local preview = require("deskboard.preview")
   local fetch = preview.fetch
   local calls = {}
   preview.fetch = function(opts, done)
@@ -411,8 +411,8 @@ test("MR-only popups load without tickets and cache identical iids by project", 
 end)
 
 test("dashboard Tab/page mappings preserve selection and keep review actions read-only", function()
-  local real_notes = require("workbench.notes")
-  local saved, names = {}, { "workbench.preview", "workbench.sync", "workbench.checkout", "workbench.notes", "workbench.note_actions", "lazyvim.config" }
+  local real_notes = require("deskboard.notes")
+  local saved, names = {}, { "deskboard.preview", "deskboard.sync", "deskboard.checkout", "deskboard.notes", "deskboard.note_actions", "lazyvim.config" }
   for _, name in ipairs(names) do saved[name] = package.loaded[name] end
   local open, systemlist, jobstart, ui_open, get, snacks = io.open, vim.fn.systemlist, vim.fn.jobstart, vim.ui.open, views.get, _G.Snacks
   local ui_select = vim.ui.select
@@ -423,16 +423,16 @@ test("dashboard Tab/page mappings preserve selection and keep review actions rea
   local selected_preview, status_lines
   local pane = { close = function() closed = closed + 1 end, update = function() end, invalidate = function() end,
     show = function(_, item) selected_preview = item end, toggle = function(_, item) selected_preview = item end }
-  package.loaded["workbench.preview"] = { attach = function() return pane end,
+  package.loaded["deskboard.preview"] = { attach = function() return pane end,
     popup = function(owner, lines)
       status_lines = lines
       return { buf = owner.buf, close = function() end }
     end }
-  package.loaded["workbench.sync"] = { status = function() return { text = "Cached sprint" } end,
+  package.loaded["deskboard.sync"] = { status = function() return { text = "Cached sprint" } end,
     refresh = function() refreshes = refreshes + 1 end }
-  package.loaded["workbench.checkout"] = { checkout = function() checkout = checkout + 1 end }
+  package.loaded["deskboard.checkout"] = { checkout = function() checkout = checkout + 1 end }
   package.loaded["lazyvim.config"] = { icons = { kinds = {} } }
-  package.loaded["workbench.notes"] = vim.tbl_extend("force", {}, real_notes, {
+  package.loaded["deskboard.notes"] = vim.tbl_extend("force", {}, real_notes, {
     list = function(opts)
       local result = vim.list_extend({}, opts.reminders)
       for _, row in ipairs(result) do row.status, row.tags, row.scope, row.category = "inbox", {}, "reminders", "general" end
@@ -445,7 +445,7 @@ test("dashboard Tab/page mappings preserve selection and keep review actions rea
     end,
     open = function(note) opened_note = note end,
   })
-  package.loaded["workbench.note_actions"] = {
+  package.loaded["deskboard.note_actions"] = {
     details = function(note)
       detailed_note = note
       return { open = true, is_open = function(self) return self.open end, close = function(self) self.open = false end }
@@ -459,7 +459,7 @@ test("dashboard Tab/page mappings preserve selection and keep review actions rea
     new_prompt = function() note_actions.new = true end,
   }
   io.open = function(path, mode)
-    if path == require("workbench.config").get().reminders.path then
+    if path == require("deskboard.config").get().reminders.path then
       return { close = function() end, lines = function()
         local i = 0
         return function()
@@ -489,7 +489,7 @@ test("dashboard Tab/page mappings preserve selection and keep review actions rea
     vim.wait(10, function() return false end)
   end
   local ok, err = xpcall(function()
-    sections = require("workbench.adapter").sections
+    sections = require("deskboard.adapter").sections
     render = function()
       owner.items, owner.lines = sections(owner), {}
       local first

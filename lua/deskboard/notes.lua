@@ -1,6 +1,6 @@
 -- Local Markdown knowledge index. No bodies in dashboard rows, no remote sync.
 local M = {}
-local metadata = require("workbench.note_metadata")
+local metadata = require("deskboard.note_metadata")
 local cache = {}
 local uv = vim.uv or vim.loop
 
@@ -10,7 +10,7 @@ end
 
 function M.roots(opts)
   opts = opts or {}
-  local cfg = require("workbench.config").get().notes
+  local cfg = require("deskboard.config").get().notes
   if not cfg.enabled and not opts.root and not opts.roots then return {} end
   local roots = opts.roots or (opts.root and { personal = opts.root })
     or (cfg.legacy_globals and vim.g.sprint_note_roots) or cfg.roots or {}
@@ -77,7 +77,7 @@ end
 function M.list(opts)
   opts = opts or {}
   local notes, present, ids = {}, {}, {}
-  local reminder_path = vim.fn.fnamemodify(opts.reminder_path or require("workbench.config").get().reminders.path or "", ":p")
+  local reminder_path = vim.fn.fnamemodify(opts.reminder_path or require("deskboard.config").get().reminders.path or "", ":p")
   for scope, root in pairs(M.roots(opts)) do
     local function scan(dir, depth)
       local entries = uv.fs_scandir(dir)
@@ -198,7 +198,7 @@ function M.open(note)
     vim.cmd.edit(vim.fn.fnameescape(note.path))
   end
   vim.api.nvim_win_set_cursor(0, { math.max(1, math.min(note.lnum or 1, vim.api.nvim_buf_line_count(0))), 0 })
-  if note.kind == "file" and note.root then require("workbench.note_actions").watch(note) end
+  if note.kind == "file" and note.root then require("deskboard.note_actions").watch(note) end
 end
 
 return M

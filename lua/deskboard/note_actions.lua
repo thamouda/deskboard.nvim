@@ -1,6 +1,6 @@
 -- Explicit, local-only note actions. No Confluence writes or automatic saves.
 local M = {}
-local meta = require("workbench.note_metadata")
+local meta = require("deskboard.note_metadata")
 local uv = vim.uv or vim.loop
 local registered = {}
 
@@ -9,7 +9,7 @@ local function warn(message)
 end
 
 local function writable()
-  if require("workbench.config").writable() then return true end
+  if require("deskboard.config").writable() then return true end
   warn("Note writes are disabled; enable notes.allow_writes explicitly")
   return false
 end
@@ -24,9 +24,9 @@ function M.current(buf)
   buf = buf or vim.api.nvim_get_current_buf()
   local path = vim.api.nvim_buf_get_name(buf)
   if vim.fn.fnamemodify(path, ":t"):lower() == "index.md" then return nil end
-  for scope, root in pairs(require("workbench.notes").roots()) do
+  for scope, root in pairs(require("deskboard.notes").roots()) do
     if path:sub(1, #root + 1) == root .. "/" and inside(path, root) then
-      return require("workbench.notes").describe(path, root, scope,
+      return require("deskboard.notes").describe(path, root, scope,
         uv.fs_stat(path) or { size = 0, mtime = { sec = 0, nsec = 0 } })
     end
   end
@@ -52,8 +52,8 @@ local function write_atomic(path, lines, before)
 end
 
 local function index_plans(note, remove)
-  local parent = note.index_root or (require("workbench.config").get().notes.legacy_globals and vim.g.sprint_note_index_root)
-    or require("workbench.config").get().notes.index_root
+  local parent = note.index_root or (require("deskboard.config").get().notes.legacy_globals and vim.g.sprint_note_index_root)
+    or require("deskboard.config").get().notes.index_root
     or (vim.fn.fnamemodify(note.root, ":t") == note.scope and vim.fn.fnamemodify(note.root, ":h") or note.root)
   local plans, seen = {}, {}
   local title = note.title:gsub("\\", "\\\\"):gsub("%[", "\\["):gsub("%]", "\\]")
@@ -136,7 +136,7 @@ function M.index(note)
   if not note or note.kind ~= "file" or not note.root or not inside(note.path, note.root) then return false end
   local plans, err = index_plans(note)
   if not plans or not apply_indexes(plans) then
-    warn((err or "Index changed or could not be written") .. "; note content is safe. Run :WorkbenchNotesIndex to retry.")
+    warn((err or "Index changed or could not be written") .. "; note content is safe. Run :DeskboardNotesIndex to retry.")
     return false
   end
   refresh_indexes(plans)
@@ -144,15 +144,15 @@ function M.index(note)
 end
 
 function M.watch(note, buf)
-  if not require("workbench.config").writable() then return end
+  if not require("deskboard.config").writable() then return end
   buf = buf or vim.api.nvim_get_current_buf()
-  if vim.b[buf].workbench_note_watched then return end
-  vim.b[buf].workbench_note_watched = true
+  if vim.b[buf].deskboard_note_watched then return end
+  vim.b[buf].deskboard_note_watched = true
   vim.api.nvim_create_autocmd("BufWritePost", {
-    group = vim.api.nvim_create_augroup("workbench_note_watches", { clear = false }),
+    group = vim.api.nvim_create_augroup("deskboard_note_watches", { clear = false }),
     buffer = buf,
     callback = function(event)
-      if not require("workbench.config").writable() then return end
+      if not require("deskboard.config").writable() then return end
       local current = M.current(event.buf)
       if current then M.index(current) end
     end,
@@ -163,24 +163,24 @@ end
 local function dates(today)
   local t = os.date("*t", today or os.time())
   local reviewed = os.date("%Y-%m-%d", today or os.time())
-  local interval = math.max(1, math.floor(tonumber(require("workbench.config").get().notes.legacy_globals and vim.g.sprint_note_review_days)
-    or require("workbench.config").get().notes.review_days))
+  local interval = math.max(1, math.floor(tonumber(require("deskboard.config").get().notes.legacy_globals and vim.g.sprint_note_review_days)
+    or require("deskboard.config").get().notes.review_days))
   return reviewed, os.date("%Y-%m-%d", os.time({ year = t.year, month = t.month, day = t.day + interval, hour = 12 }))
 end
 
 function M.edit(note, changes)
   if not writable() then return false end
   if not note or note.kind ~= "file" or not note.root or not inside(note.path, note.root) then
-    warn("Reminder entries need a standalone Markdown note first (:WorkbenchNotesNew).")
+    warn("Reminder entries need a standalone Markdown note first (:DeskboardNotesNew).")
     return false
   end
-  require("workbench.notes").open(note)
+  require("deskboard.notes").open(note)
   local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
   local current = meta.parse(lines)
   if not current.valid then warn(current.error .. "; fix the frontmatter first."); return false end
   local values = vim.tbl_extend("force", {}, changes)
   if not current.uid and not values.id then
-    local id, err = require("workbench.note_ids").next()
+    local id, err = require("deskboard.note_ids").next()
     if not id then warn(err); return false end
     values.id = id
   end
@@ -230,7 +230,7 @@ end
 function M.create(opts)
   if not writable() then return nil, "Note writes are disabled" end
   opts = opts or {}
-  local root = require("workbench.notes").roots(opts)[opts.scope or "personal"]
+  local root = require("deskboard.notes").roots(opts)[opts.scope or "personal"]
   local category = opts.category or "inbox"
   if not root or category == "" or #category > 160 then return nil, "Invalid note scope/category" end
   for part in (category .. "/"):gmatch("(.-)/") do
@@ -250,7 +250,7 @@ function M.create(opts)
   if uv.fs_lstat(path) or vim.fn.bufnr(path) >= 0 then return nil, "A note with that filename already exists" end
   local made = pcall(vim.fn.mkdir, dir, "p")
   if not made or not uv.fs_stat(dir) or uv.fs_stat(dir).type ~= "directory" then return nil, "Cannot create note category" end
-  local id, allocation_error = require("workbench.note_ids").next(opts)
+  local id, allocation_error = require("deskboard.note_ids").next(opts)
   if not id then return nil, allocation_error end
   vim.cmd.edit(vim.fn.fnameescape(path))
   local values = { "---", "id: " .. vim.json.encode(id),
@@ -266,7 +266,7 @@ end
 
 function M.new_prompt()
   if not writable() then return end
-  local roots = require("workbench.notes").roots()
+  local roots = require("deskboard.notes").roots()
   local scopes = vim.tbl_keys(roots); table.sort(scopes)
   vim.ui.select(scopes, { prompt = "Choose private/publishable vault" }, function(scope)
     if not scope then return end
@@ -288,7 +288,7 @@ end
 local function managed(note)
   if not note or note.kind ~= "file" or type(note.path) ~= "string" or not note.root
     or vim.fn.fnamemodify(note.path, ":t"):lower() == "index.md" then return false end
-  for _, root in pairs(require("workbench.notes").roots()) do
+  for _, root in pairs(require("deskboard.notes").roots()) do
     if (uv.fs_realpath(root) or root) == (uv.fs_realpath(note.root) or note.root)
       and inside(note.path, root) then return true end
   end
@@ -321,7 +321,7 @@ function M.delete(note, done)
     warn("Delete is only for saved, managed Markdown notes, not reminders, indexes or symlinks."); done(false); return
   end
   if not note_buffers(note.path) then warn("Save or discard unsaved note changes before deleting."); done(false); return end
-  note = require("workbench.notes").describe(note.path, note.root, note.scope) or note
+  note = require("deskboard.notes").describe(note.path, note.root, note.scope) or note
   local before = file_signature(note.path)
   vim.ui.select({ "Cancel", "Move note to trash" }, {
     prompt = "Delete " .. (note.uid or "legacy note") .. " — " .. note.path .. "?",
@@ -371,15 +371,15 @@ end
 function M.assign_id(note)
   if not writable() then return end
   if not managed(note) then warn("Open a managed Markdown note first"); return end
-  local current = require("workbench.notes").describe(note.path, note.root, note.scope) or note
+  local current = require("deskboard.notes").describe(note.path, note.root, note.scope) or note
   local before = current.uid
   vim.ui.select({ "Cancel", "Assign new NOTE ID" }, {
     prompt = "Replace " .. (before or "missing ID") .. "? Existing references may need updating; :w saves.",
   }, function(choice)
     if choice ~= "Assign new NOTE ID" then return end
-    local fresh = require("workbench.notes").describe(note.path, note.root, note.scope) or note
+    local fresh = require("deskboard.notes").describe(note.path, note.root, note.scope) or note
     if fresh.uid ~= before then warn("Note ID changed while confirming; retry"); return end
-    local id, err = require("workbench.note_ids").next()
+    local id, err = require("deskboard.note_ids").next()
     if not id then warn(err); return end
     M.edit(note, { id = id, previous_id = before })
   end)
@@ -392,7 +392,7 @@ function M.browser(note)
     warn("Refusing network-exposed note preview. Disable mkdp_open_to_the_world and restart its preview server first.")
     return false
   end
-  require("workbench.notes").open(note) -- keep unsaved text, never auto-save
+  require("deskboard.notes").open(note) -- keep unsaved text, never auto-save
   vim.bo.filetype = "markdown"
   if vim.fn.exists(":MarkdownPreview") ~= 2 then
     warn("Browser preview requires markdown-preview.nvim; install/build it with :Lazy."); return false
@@ -405,14 +405,14 @@ end
 function M.details(note, owner)
   if not note then return end
   if note.kind == "file" then
-    local current = require("workbench.notes").describe(note.path, note.root, note.scope) or note
+    local current = require("deskboard.notes").describe(note.path, note.root, note.scope) or note
     -- ID uniqueness is checked by the vault index, not a single-file parse.
     if note.metadata_error == "Duplicate note ID" then
       current.metadata_error, current.visibility = note.metadata_error, "private"
     end
     note = current
   end
-  local ready = require("workbench.notes").ready(note)
+  local ready = require("deskboard.notes").ready(note)
   local lines = { "# " .. note.title, "", "- ID: " .. (note.uid or "legacy / none"),
     "- Previous ID: " .. (note.previous_id or "none"),
     "- Category: " .. (note.scope or "reminders") .. "/" .. (note.category or "general"),
@@ -424,7 +424,7 @@ function M.details(note, owner)
     "- File: " .. note.path }
   if note.metadata_error then vim.list_extend(lines, { "", "> Metadata needs attention: " .. note.metadata_error }) end
   for i, line in ipairs(lines) do lines[i] = line:gsub("[%z\1-\31\127]", " ") end
-  local popup = require("workbench.preview").popup(owner, lines, { title = " Note details · q close ", glow = false })
+  local popup = require("deskboard.preview").popup(owner, lines, { title = " Note details · q close ", glow = false })
   if popup then
     local group = vim.api.nvim_create_augroup("note_details_" .. owner.buf, { clear = true })
     vim.api.nvim_create_autocmd({ "BufHidden", "BufWipeout" }, {
@@ -437,12 +437,12 @@ function M.details(note, owner)
 end
 
 function M.search(notes)
-  notes = notes or require("workbench.notes").list()
+  notes = notes or require("deskboard.notes").list()
   local paths, seen = {}, {}
   for _, note in ipairs(notes) do
     if note.kind ~= "reminder" and not seen[note.path] then paths[#paths + 1] = note.path; seen[note.path] = true end
   end
-  if #paths == 0 then warn("No standalone Markdown notes match the filters; capture reminder entries with :WorkbenchNotesNew first"); return end
+  if #paths == 0 then warn("No standalone Markdown notes match the filters; capture reminder entries with :DeskboardNotesNew first"); return end
   local ok, telescope = pcall(require, "telescope.builtin")
   if not ok then warn("Telescope is required for full-text note search"); return end
   telescope.live_grep({ search_dirs = paths, prompt_title = "Local notes · literal full-text search",
@@ -450,9 +450,9 @@ function M.search(notes)
 end
 
 function M.dispose()
-  pcall(vim.api.nvim_del_augroup_by_name, "workbench_note_workflow")
-  pcall(vim.api.nvim_del_augroup_by_name, "workbench_note_watches")
-  for _, buf in ipairs(vim.api.nvim_list_bufs()) do vim.b[buf].workbench_note_watched = nil end
+  pcall(vim.api.nvim_del_augroup_by_name, "deskboard_note_workflow")
+  pcall(vim.api.nvim_del_augroup_by_name, "deskboard_note_watches")
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do vim.b[buf].deskboard_note_watched = nil end
 end
 
 function M.setup()
@@ -460,7 +460,7 @@ function M.setup()
   for _, name in ipairs(registered) do pcall(vim.api.nvim_del_user_command, name) end
   registered = {}
   vim.api.nvim_create_autocmd({ "BufReadPost", "BufNewFile" }, {
-    group = vim.api.nvim_create_augroup("workbench_note_workflow", { clear = true }), pattern = "*.md",
+    group = vim.api.nvim_create_augroup("deskboard_note_workflow", { clear = true }), pattern = "*.md",
     callback = function(event)
       local note = M.current(event.buf)
       if note then M.watch(note, event.buf) end
@@ -468,9 +468,9 @@ function M.setup()
     desc = "Watch managed notes only; never project Markdown or indexes",
   })
   local function command(name, callback)
-    vim.api.nvim_create_user_command("Workbench" .. name, callback, { force = true })
-    registered[#registered + 1] = "Workbench" .. name
-    if require("workbench.config").get().compat_commands then
+    vim.api.nvim_create_user_command("Deskboard" .. name, callback, { force = true })
+    registered[#registered + 1] = "Deskboard" .. name
+    if require("deskboard.config").get().compat_commands then
       vim.api.nvim_create_user_command(name, callback, { force = true }); registered[#registered + 1] = name
     end
   end
@@ -484,7 +484,7 @@ function M.setup()
     end)
   end
   command("NotesSearch", function() M.search() end)
-  if require("workbench.config").writable() then
+  if require("deskboard.config").writable() then
     for _, buf in ipairs(vim.api.nvim_list_bufs()) do
       if vim.api.nvim_buf_is_loaded(buf) then local note = M.current(buf); if note then M.watch(note, buf) end end
     end

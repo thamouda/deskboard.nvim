@@ -3,9 +3,9 @@ dofile("tests/support/bootstrap.lua")
 -- Pure panel/status fixtures; no plugins, CLI calls, browser or network.
 vim.opt.rtp:prepend(vim.fn.getcwd())
 os.setlocale("C", "time")
-local board = require("workbench.board")
-local views = require("workbench.views")
-local status = require("workbench.status")
+local board = require("deskboard.board")
+local views = require("deskboard.views")
+local status = require("deskboard.status")
 local now = os.time({ year = 2026, month = 11, day = 5, hour = 9, min = 4, sec = 0 })
 local count = 0
 local function test(name, fn) fn(); count = count + 1; print("PASS: " .. name) end

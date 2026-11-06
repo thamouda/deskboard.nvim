@@ -2,7 +2,7 @@ dofile("tests/support/bootstrap.lua")
 -- Run: nvim --headless -u NONE -l tests/sprint-preview-glow.lua
 -- No network or credentials. Real Glow integration is skipped if not installed.
 vim.opt.rtp:prepend(vim.fn.getcwd())
-local preview = require("workbench.preview")
+local preview = require("deskboard.preview")
 local original_fetch, count = preview.fetch, 0
 preview.fetch = function()
   return function() end

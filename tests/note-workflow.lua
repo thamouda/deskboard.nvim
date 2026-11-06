@@ -3,9 +3,9 @@ dofile("tests/support/bootstrap.lua")
 -- Disposable vaults only. No real notes, remote services, or Git writes.
 vim.opt.rtp:prepend(vim.fn.getcwd())
 vim.opt.hidden = true
-local meta = require("workbench.note_metadata")
-local notes = require("workbench.notes")
-local workflow = require("workbench.note_actions")
+local meta = require("deskboard.note_metadata")
+local notes = require("deskboard.notes")
+local workflow = require("deskboard.note_actions")
 local root = vim.fn.tempname() .. " knowledge"
 local roots = { personal = root .. "/personal", work = root .. "/work" }
 local old_roots, old_index, old_ids = vim.g.sprint_note_roots, vim.g.sprint_note_index_root, vim.g.sprint_note_id_state_dir

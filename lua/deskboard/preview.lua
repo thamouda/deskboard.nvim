@@ -1,6 +1,6 @@
 -- On-demand, read-only Jira/GitLab details. No network work during rendering.
 local M = {}
-local markdown = require("workbench.markdown")
+local markdown = require("deskboard.markdown")
 local auth_cache = {}
 local instances = {}
 local Preview = {}
@@ -61,12 +61,12 @@ function M.fetch(opts, done)
       receive({ code = -1 })
     end
   end
-  if opts.ticket and (require("workbench.config").get().providers.jira.enabled or opts.run) then
+  if opts.ticket and (require("deskboard.config").get().providers.jira.enabled or opts.run) then
     request("jira", { "jira", "issue", "view", opts.ticket, "--raw" }, nil, function(value)
       return type(value.fields) == "table" and value.key == opts.ticket
     end)
   end
-  if opts.mr_iid and (require("workbench.config").get().providers.gitlab.enabled or opts.run) then
+  if opts.mr_iid and (require("deskboard.config").get().providers.gitlab.enabled or opts.run) then
     local function gitlab(token)
       if cancelled then
         return
@@ -409,12 +409,12 @@ function Preview:stop_render()
 end
 
 function M.glow_style(opts)
-  local custom = (opts or {}).glow_style or require("workbench.config").get().preview.glow_style
-    or (require("workbench.config").get().notes.legacy_globals and vim.g.sprint_preview_glow_style)
+  local custom = (opts or {}).glow_style or require("deskboard.config").get().preview.glow_style
+    or (require("deskboard.config").get().notes.legacy_globals and vim.g.sprint_preview_glow_style)
   if type(custom) == "string" and custom ~= "" then
     return vim.fn.expand(custom)
   end
-  local theme = require("workbench.config").root() .. "/styles/sprint-preview-" .. vim.o.background .. ".json"
+  local theme = require("deskboard.config").root() .. "/styles/sprint-preview-" .. vim.o.background .. ".json"
   return vim.fn.filereadable(theme) == 1 and theme or vim.o.background
 end
 
@@ -630,7 +630,7 @@ function M.attach(dashboard, opts)
   end
   local self = setmetatable({ dashboard = dashboard, opts = opts, cache = {}, sequence = 0 }, Preview)
   instances[dashboard.buf] = self
-  local group = vim.api.nvim_create_augroup("workbench_preview_" .. dashboard.buf, { clear = true })
+  local group = vim.api.nvim_create_augroup("deskboard_preview_" .. dashboard.buf, { clear = true })
   vim.api.nvim_create_autocmd("User", {
     group = group,
     pattern = "SprintBoardRefreshPost",
@@ -667,7 +667,7 @@ end
 function M.dispose()
   for buf, instance in pairs(instances) do
     instance:close()
-    pcall(vim.api.nvim_del_augroup_by_name, "workbench_preview_" .. buf)
+    pcall(vim.api.nvim_del_augroup_by_name, "deskboard_preview_" .. buf)
   end
   instances, auth_cache = {}, {}
 end

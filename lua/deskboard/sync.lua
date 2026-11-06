@@ -24,22 +24,22 @@ local function age_label(seconds)
 end
 
 local function notice(opts)
-  local info = require("workbench.status").format(opts)
+  local info = require("deskboard.status").format(opts)
   return (info.text:gsub(" · ! details$", " · Dashboard ! details"))
 end
 
 local function update_dashboard()
-  pcall(function() require("workbench").redraw() end)
+  pcall(function() require("deskboard").redraw() end)
 end
 
 -- Separate instances keep tests isolated from the real reminder and state.
 function M.new(opts)
   opts = opts or {}
-  local cfg = require("workbench.config").get()
-  local reminder = opts.reminder or cfg.providers.jira.snapshot or vim.fn.stdpath("state") .. "/workbench/snapshot.md"
+  local cfg = require("deskboard.config").get()
+  local reminder = opts.reminder or cfg.providers.jira.snapshot or vim.fn.stdpath("state") .. "/deskboard/snapshot.md"
   local command = opts.command or cfg.providers.jira.command or (opts.script and { opts.script })
   if not command then
-    command = { "python3", require("workbench.config").root() .. "/scripts/sprint-sync.py", "--reminder", reminder,
+    command = { "python3", require("deskboard.config").root() .. "/scripts/sprint-sync.py", "--reminder", reminder,
       "--host", cfg.providers.gitlab.host, "--project", cfg.providers.gitlab.project or "", "--proxy", cfg.providers.gitlab.proxy or "" }
     if not cfg.providers.gitlab.enabled then command[#command + 1] = "--no-gitlab" end
     if cfg.providers.gitlab.token_command then vim.list_extend(command, { "--token-command", vim.json.encode(cfg.providers.gitlab.token_command) }) end
@@ -47,7 +47,7 @@ function M.new(opts)
   local self = setmetatable({
     script = opts.script or command[1], command = command,
     reminder = reminder,
-    state_file = opts.state_file or cfg.providers.jira.state_file or vim.fn.stdpath("state") .. "/workbench/sync.json",
+    state_file = opts.state_file or cfg.providers.jira.state_file or vim.fn.stdpath("state") .. "/deskboard/sync.json",
     run = opts.run or vim.system,
     now = opts.now or os.time,
     changed = opts.changed or update_dashboard,
@@ -128,7 +128,7 @@ function Sync:refresh(opts)
     if result.code == 0 and (not report or report.ok == true) and after and not vim.deep_equal(before, after) then
       self.last_success, self.last_error = self.now(), nil
       self.sources = report and type(report.sources) == "table" and report.sources or nil
-      if self.sources and not require("workbench.config").get().providers.gitlab.enabled then self.sources.gitlab = nil end
+      if self.sources and not require("deskboard.config").get().providers.gitlab.enabled then self.sources.gitlab = nil end
       self.warnings = report and type(report.warnings) == "table" and report.warnings or {}
       -- Persist only metadata, never tokens or ticket contents. A write failure
       -- must not invalidate an otherwise successful Jira refresh.
@@ -191,7 +191,7 @@ function M.status()
 end
 
 function M.refresh(opts)
-  if not require("workbench.config").get().providers.jira.enabled then return false end
+  if not require("deskboard.config").get().providers.jira.enabled then return false end
   return instance():refresh(opts)
 end
 
@@ -204,15 +204,15 @@ function M.dispose()
     if default.job then pcall(function() default.job:kill(15) end) end
   end
   default = nil
-  pcall(vim.api.nvim_del_augroup_by_name, "workbench_sync")
+  pcall(vim.api.nvim_del_augroup_by_name, "deskboard_sync")
 end
 
 function M.setup()
-  local cfg = require("workbench.config").get()
+  local cfg = require("deskboard.config").get()
   if not cfg.providers.jira.enabled then return end
   generation = generation + 1
   local own_generation = generation
-  local group = vim.api.nvim_create_augroup("workbench_sync", { clear = true })
+  local group = vim.api.nvim_create_augroup("deskboard_sync", { clear = true })
   if cfg.compat_commands then vim.api.nvim_create_user_command("SprintBoardRefresh", function() M.refresh() end, { force = true }) end
   local function startup()
     if startup_timer and not startup_timer:is_closing() then startup_timer:stop(); startup_timer:close() end

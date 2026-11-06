@@ -2,7 +2,7 @@ dofile("tests/support/bootstrap.lua")
 -- Run: nvim --headless -u NONE -l tests/sprint-edit.lua
 -- ALL Jira commands, including edits, are mocked. Never touches real tickets.
 vim.opt.rtp:prepend(vim.fn.getcwd())
-local edit = require("workbench.jira_edit")
+local edit = require("deskboard.jira_edit")
 local root, serial, count = vim.fn.tempname() .. " Jira draft tests", 0, 0
 local fixtures, messages = {}, {}
 vim.notify = function(message)

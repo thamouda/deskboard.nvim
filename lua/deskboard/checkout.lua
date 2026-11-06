@@ -49,8 +49,8 @@ end
 ---on_done(ok) is also called for cancellation/failure; on_success refreshes UI.
 function M.checkout(ticket, opts)
   opts = opts or {}
-  if not require("workbench.config").get().actions.checkout then notify("Checkout is disabled", vim.log.levels.WARN); return end
-  local configured = opts.repo or require("workbench.config").get().actions.repo
+  if not require("deskboard.config").get().actions.checkout then notify("Checkout is disabled", vim.log.levels.WARN); return end
+  local configured = opts.repo or require("deskboard.config").get().actions.repo
   if not configured then notify("Configure actions.repo first", vim.log.levels.WARN); return end
   local repo = vim.fn.expand(configured)
   repo = vim.uv.fs_realpath(repo) or vim.fs.normalize(repo)

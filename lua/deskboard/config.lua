@@ -22,8 +22,8 @@ local function argv(value, name)
 end
 function M.set(opts)
   local next_options = vim.tbl_deep_extend("force", vim.deepcopy(defaults), opts or {})
-  assert(type(next_options.width) == "number" and next_options.width >= 16 and next_options.width < math.huge, "workbench.width must be >=16")
-  assert(type(next_options.page_size) == "number" and next_options.page_size >= 1 and next_options.page_size < math.huge, "workbench.page_size must be >=1")
+  assert(type(next_options.width) == "number" and next_options.width >= 16 and next_options.width < math.huge, "deskboard.width must be >=16")
+  assert(type(next_options.page_size) == "number" and next_options.page_size >= 1 and next_options.page_size < math.huge, "deskboard.page_size must be >=1")
   assert(type(next_options.refresh_interval) == "number" and next_options.refresh_interval > 0 and next_options.refresh_interval < math.huge, "Invalid refresh_interval")
   for _, name in ipairs({ "jira", "gitlab" }) do boolean(next_options.providers[name].enabled, name .. ".enabled") end
   boolean(next_options.providers.jira.auto_refresh, "jira.auto_refresh")
@@ -34,14 +34,14 @@ function M.set(opts)
   for _, root in pairs(next_options.notes.roots) do assert(type(root) == "string" and root ~= "", "Invalid note root") end
   argv(next_options.providers.jira.command, "jira.command"); argv(next_options.providers.gitlab.token_command, "gitlab.token_command")
   next_options.page_size = math.floor(next_options.page_size)
-  next_options.notes.id_state_dir = next_options.notes.id_state_dir or vim.fn.stdpath("state") .. "/workbench/note-ids"
-  next_options.providers.jira.state_file = next_options.providers.jira.state_file or vim.fn.stdpath("state") .. "/workbench/sync.json"
+  next_options.notes.id_state_dir = next_options.notes.id_state_dir or vim.fn.stdpath("state") .. "/deskboard/note-ids"
+  next_options.providers.jira.state_file = next_options.providers.jira.state_file or vim.fn.stdpath("state") .. "/deskboard/sync.json"
   if next_options.demo then
     assert(not next_options.providers.jira.enabled and not next_options.providers.gitlab.enabled and not next_options.notes.allow_writes
       and not next_options.actions.checkout and not next_options.actions.pipeline and not next_options.actions.jira_edit, "Demo mode must remain offline/read-only")
   end
   if next_options.providers.jira.enabled then
-    next_options.providers.jira.snapshot = next_options.providers.jira.snapshot or vim.fn.stdpath("state") .. "/workbench/snapshot.md"
+    next_options.providers.jira.snapshot = next_options.providers.jira.snapshot or vim.fn.stdpath("state") .. "/deskboard/snapshot.md"
   end
   if next_options.providers.gitlab.enabled then
     assert(type(next_options.providers.gitlab.project) == "string" and next_options.providers.gitlab.project ~= "", "GitLab project is required")

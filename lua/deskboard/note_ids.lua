@@ -20,21 +20,21 @@ end
 
 function M.paths(opts)
   opts = opts or {}
-  local roots = require("workbench.notes").roots(opts)
+  local roots = require("deskboard.notes").roots(opts)
   local keys, seen = {}, {}
   for _, root in pairs(roots) do
     local key = canonical(root)
     if not seen[key] then keys[#keys + 1] = key; seen[key] = true end
   end
   table.sort(keys)
-  local directory = opts.id_state_dir or (require("workbench.config").get().notes.legacy_globals and vim.g.sprint_note_id_state_dir)
-    or require("workbench.config").get().notes.id_state_dir or vim.fn.stdpath("state") .. "/workbench/note-ids"
+  local directory = opts.id_state_dir or (require("deskboard.config").get().notes.legacy_globals and vim.g.sprint_note_id_state_dir)
+    or require("deskboard.config").get().notes.id_state_dir or vim.fn.stdpath("state") .. "/deskboard/note-ids"
   local path = directory .. "/" .. vim.fn.sha256(vim.json.encode(keys)):sub(1, 24) .. ".json"
   return path, path .. ".lock", roots
 end
 
 function M.next(opts)
-  if not require("workbench.config").writable() then return nil, "Note writes are disabled; enable notes.allow_writes explicitly" end
+  if not require("deskboard.config").writable() then return nil, "Note writes are disabled; enable notes.allow_writes explicitly" end
   local path, lock, roots = M.paths(opts)
   local made = pcall(vim.fn.mkdir, vim.fn.fnamemodify(path, ":h"), "p", 448)
   if not made then return nil, "Cannot create note ID state directory" end

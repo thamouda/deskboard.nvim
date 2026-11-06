@@ -4,7 +4,7 @@ dofile("tests/support/bootstrap.lua")
 vim.opt.rtp:prepend(vim.fn.getcwd())
 vim.env.GIT_CONFIG_GLOBAL = "/dev/null"
 vim.env.GIT_CONFIG_NOSYSTEM = "1"
-local checkout = require("workbench.checkout")
+local checkout = require("deskboard.checkout")
 local root = vim.fn.tempname() .. " sprint checkout"
 local messages, count = {}, 0
 vim.notify = function(message)
@@ -193,20 +193,20 @@ local ok, err = xpcall(function()
     package.loaded["lazyvim.config"] = { icons = { kinds = {} } }
     local selected, opened, refreshed
     io.open = function(path, mode)
-      return open(path == require("workbench.config").get().reminders.path and reminder or path, mode)
+      return open(path == require("deskboard.config").get().reminders.path and reminder or path, mode)
     end
     vim.fn.systemlist = function() return { "previous" } end
     vim.fn.jobstart = function(cmd) opened = cmd end
     _G.Snacks = { dashboard = { update = function() refreshed = true end } }
-    package.loaded["workbench.checkout"] = {
+    package.loaded["deskboard.checkout"] = {
       checkout = function(ticket, opts)
         selected = ticket
-        assert(opts.repo == require("workbench.config").get().actions.repo)
+        assert(opts.repo == require("deskboard.config").get().actions.repo)
         opts.on_success()
       end,
     }
     local integrated, integration_err = xpcall(function()
-      local sections = require("workbench.adapter").sections
+      local sections = require("deskboard.adapter").sections
       assert(sections)
       local self = { buf = vim.api.nvim_get_current_buf(), win = vim.api.nvim_get_current_win() }
       local items = sections(self)
@@ -237,7 +237,7 @@ local ok, err = xpcall(function()
     io.open, vim.fn.systemlist, vim.fn.jobstart = open, systemlist, jobstart
     _G.Snacks = snacks
     package.loaded["lazyvim.config"] = lazyvim_config
-    package.loaded["workbench.checkout"] = checkout
+    package.loaded["deskboard.checkout"] = checkout
     assert(integrated, integration_err)
   end)
 end, debug.traceback)

@@ -3,7 +3,7 @@ dofile("tests/support/bootstrap.lua")
 -- No network, plugins, reminder file, or Git worktree required.
 vim.opt.rtp:prepend(vim.fn.getcwd())
 os.setlocale("C", "time")
-local board = require("workbench.board")
+local board = require("deskboard.board")
 local count = 0
 
 local function test(name, fn)
@@ -57,7 +57,7 @@ end
 
 local function has_chunk(item, value, hl)
   for _, part in ipairs(item.text) do
-    if part[1] == value and part.hl == "Workbench" .. hl then
+    if part[1] == value and part.hl == "Deskboard" .. hl then
       return true
     end
   end
@@ -382,12 +382,12 @@ end)
 test("palette follows the theme without accumulating autocmds", function()
   board.setup_highlights()
   board.setup_highlights()
-  assert(#vim.api.nvim_get_autocmds({ group = "workbench_colors" }) == 1)
+  assert(#vim.api.nvim_get_autocmds({ group = "deskboard_colors" }) == 1)
   vim.api.nvim_set_hl(0, "DiagnosticError", { fg = 0xab1234 })
   vim.api.nvim_exec_autocmds("ColorScheme", { pattern = "test" })
-  assert(vim.api.nvim_get_hl(0, { name = "WorkbenchError", link = false }).fg == 0xab1234)
-  assert(vim.api.nvim_get_hl(0, { name = "WorkbenchError", link = false }).bold)
-  assert(not vim.api.nvim_get_hl(0, { name = "WorkbenchCursor", link = false }).fg)
+  assert(vim.api.nvim_get_hl(0, { name = "DeskboardError", link = false }).fg == 0xab1234)
+  assert(vim.api.nvim_get_hl(0, { name = "DeskboardError", link = false }).bold)
+  assert(not vim.api.nvim_get_hl(0, { name = "DeskboardCursor", link = false }).fg)
 end)
 
 print(("All %d sprint board tests passed"):format(count))

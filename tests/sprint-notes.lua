@@ -3,7 +3,7 @@ dofile("tests/support/bootstrap.lua")
 -- Disposable note fixtures only; never reads/writes the real personal vault.
 vim.opt.rtp:prepend(vim.fn.getcwd())
 vim.opt.hidden = true
-local notes = require("workbench.notes")
+local notes = require("deskboard.notes")
 local root = vim.fn.tempname() .. " personal notes"
 vim.fn.mkdir(root .. "/nested", "p")
 local count = 0

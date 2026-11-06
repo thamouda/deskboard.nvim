@@ -1,12 +1,12 @@
-# workbench.nvim
+# deskboard.nvim
 
 A Snacks-backed Neovim dashboard for tickets, review assignments, local knowledge
 notes, and quick reminders. Shared fixed frames, title-bar clocks, pagination,
 author/metadata filters, and concise status badges.
 
-**Local v0.1 development extraction. Not published on GitHub yet.** The name is
-provisional. Runtime: Neovim 0.11+ and Snacks. Core setup does not depend on
-LazyVim or lazy.nvim and does not configure Snacks a second time.
+**Local v0.1 development extraction. Not published on GitHub yet.** Runtime:
+Neovim 0.11+ and Snacks. Core setup does not depend on LazyVim or lazy.nvim and
+does not configure Snacks a second time.
 
 ## Install with lazy.nvim / LazyVim
 
@@ -16,30 +16,30 @@ During development use the local directory. After publication replace `dir` and
 ```lua
 return {
   {
-    dir = vim.fn.expand("~/dev/workbench.nvim"),
-    name = "workbench.nvim",
-    main = "workbench",
+    dir = vim.fn.expand("~/dev/deskboard.nvim"),
+    name = "deskboard.nvim",
+    main = "deskboard",
     opts = { demo = true }, -- synthetic offline data, no writable actions
   },
   {
     "folke/snacks.nvim",
-    dependencies = { "workbench.nvim" },
+    dependencies = { "deskboard.nvim" },
     opts = function(_, opts)
       opts.dashboard = opts.dashboard or {}
       opts.dashboard.enabled = true
       opts.dashboard.sections = function(owner)
-        return require("workbench").sections(owner)
+        return require("deskboard").sections(owner)
       end
     end,
   },
 }
 ```
 
-The dependency goes **Snacks -> Workbench**. Workbench setup must not require or
+The dependency goes **Snacks -> Deskboard**. Deskboard setup must not require or
 setup Snacks; the adapter accesses it only when opening/rendering. Existing
 explorer/notifier/terminal settings are preserved.
 
-Open `:Workbench`; inspect `:checkhealth workbench`. Empty/offline panels work
+Open `:Deskboard`; inspect `:checkhealth deskboard`. Empty/offline panels work
 without credentials. No default global mappings are installed.
 
 ## Configuration
@@ -119,10 +119,10 @@ Buffer-local: Tab / Shift-Tab cycles panels; `[p` / `]p` or PageUp/PageDown page
   details. `+`, M, v, V and D are writable actions and require explicit opt-in.
 - Reminders: separate quick captures; Enter/o edits source, not article metadata.
 
-Commands are namespaced: `:Workbench`, `:WorkbenchRefresh`,
-`:WorkbenchNotesNew`, `:WorkbenchNotesStatus`, `:WorkbenchNotesReviewed`,
-`:WorkbenchNotesVisibility`, `:WorkbenchNotesSearch`, `:WorkbenchNotesIndex`,
-`:WorkbenchNotesDelete`, `:WorkbenchNotesAssignID`, `:WorkbenchNotesBrowser`.
+Commands are namespaced: `:Deskboard`, `:DeskboardRefresh`,
+`:DeskboardNotesNew`, `:DeskboardNotesStatus`, `:DeskboardNotesReviewed`,
+`:DeskboardNotesVisibility`, `:DeskboardNotesSearch`, `:DeskboardNotesIndex`,
+`:DeskboardNotesDelete`, `:DeskboardNotesAssignID`, `:DeskboardNotesBrowser`.
 `compat_commands=true` adds legacy `Notes*` / `SprintBoardRefresh` aliases only
 for migration of an existing private setup.
 
@@ -140,7 +140,7 @@ note to local `.trash`; dirty buffers refuse deletion and failed index updates
 roll back. Browser preview is local-only and does not auto-save or publish.
 Confluence publishing is not implemented.
 
-Default state lives under `stdpath('state')/workbench`. To migrate existing NOTE
+Default state lives under `stdpath('state')/deskboard`. To migrate existing NOTE
 reservations, set `notes.id_state_dir` to the original allocator directory or
 explicitly migrate its high-water JSON; do not simply delete/reset it. Existing
 IDs are not silently changed. `notes.legacy_globals=true` is an optional legacy
@@ -167,8 +167,8 @@ provided explicitly. No real notes or API services should be accessed in CI.
 
 ## Release status
 
-No public remote or release exists yet. Before publishing: choose the final name,
-review licensing/provenance, pin tested dependencies/actions, audit source/history
+No public remote or release exists yet. Before publishing: review
+licensing/provenance, pin tested dependencies/actions, audit source/history
 and synthetic screenshots, run clean lazy install smoke tests on supported
 platforms, then tag `v0.1.0`. Initially exercised on Linux/Neovim 0.11.6;
 Windows support is not claimed. License: Apache-2.0; see LICENSE.

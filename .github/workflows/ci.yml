@@ -36,8 +36,8 @@ jobs:
           git -C "$RUNNER_TEMP/lazy.nvim" checkout FETCH_HEAD
       - name: Real Snacks and lazy.nvim smoke
         env:
-          WORKBENCH_SNACKS: ${{ runner.temp }}/snacks.nvim
-          WORKBENCH_LAZY: ${{ runner.temp }}/lazy.nvim
+          DESKBOARD_SNACKS: ${{ runner.temp }}/snacks.nvim
+          DESKBOARD_LAZY: ${{ runner.temp }}/lazy.nvim
         run: |
           nvim --headless -u NONE -i NONE -l tests/smoke-snacks.lua
           nvim --headless -u NONE -i NONE -l tests/smoke-lazy.lua

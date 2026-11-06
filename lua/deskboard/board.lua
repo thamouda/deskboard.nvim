@@ -1,7 +1,7 @@
 -- Theme-aware Snacks dashboard cards. Rendering is side-effect free; ticket
 -- actions are supplied by the dashboard so navigation/checkout stay unchanged.
 local M = { width = 124, header_rows = 5 }
-local H = "Workbench"
+local H = "Deskboard"
 -- Match Snacks' context-independent cell widths, including CJK characters.
 local width = vim.api.nvim_strwidth
 local NAV_HELP = "Tab switch board   [p / ]p page   ! status"
@@ -111,7 +111,7 @@ function M.setup_highlights()
   end
   apply()
   vim.api.nvim_create_autocmd("ColorScheme", {
-    group = vim.api.nvim_create_augroup("workbench_colors", { clear = true }),
+    group = vim.api.nvim_create_augroup("deskboard_colors", { clear = true }),
     callback = apply,
     desc = "Refresh sprint board palette",
   })
@@ -316,7 +316,7 @@ local function card(title, content, outer_width, frame, now)
     end
     result[#result + 1] = item
   end
-  local clock = require("workbench.clock").inline({ width = math.max(5, outer_width - width(title) - 8), now = now or (frame and frame.now) })
+  local clock = require("deskboard.clock").inline({ width = math.max(5, outer_width - width(title) - 8), now = now or (frame and frame.now) })
   local clock_width = text_width(clock) + 2
   local label = " " .. fit(title, math.max(1, outer_width - clock_width - 6)) .. " "
   local top = { chunk("╭─" .. label .. string.rep("─", math.max(1, outer_width - width(label) - clock_width - 3)) .. " ", "Border") }
@@ -448,7 +448,7 @@ function M.render(opts)
   if opts.page_size then
     local ordered = vim.list_extend(vim.list_extend({}, active), done)
     local visible
-    visible, page_info = require("workbench.views").paginate(ordered, opts.page, opts.page_size)
+    visible, page_info = require("deskboard.views").paginate(ordered, opts.page, opts.page_size)
     active_page, done_page = {}, {}
     for _, ticket in ipairs(visible) do
       table.insert(ticket.todo.done and done_page or active_page, ticket)
@@ -474,7 +474,7 @@ function M.render(opts)
     slots[6] = line(summary, failed + blocked + threads > 0 and "Warning" or "Success")
   else slots[6] = line("0 tickets", "Muted") end
   local stale = sync.stale or (sync.sources and (sync.sources.jira == false or sync.sources.gitlab == false))
-  local notice = require("workbench.status").format({ title = "My tickets", error = sync.error,
+  local notice = require("deskboard.status").format({ title = "My tickets", error = sync.error,
     warnings = sync.warnings, cached = #todos > 0, running = sync.running, age = sync.age,
     estimated = sync.estimated, stale = stale, sources = sync.sources })
   if sync.text then notice.details[#notice.details + 1] = "- " .. sync.text end
@@ -620,12 +620,12 @@ function M.render_reviews(opts)
     [4] = { text = { chunk(fit(state.author and ("Author: @" .. state.author) or "Author: all", inner), "Muted") } },
     [6] = { text = { chunk(fit(("%d/%d reviews · a filter · A clear"):format(#filtered, #state.rows), inner), "Muted") } },
   }
-  local notice = require("workbench.status").format({ title = "Reviews for me", error = state.error,
+  local notice = require("deskboard.status").format({ title = "Reviews for me", error = state.error,
     warnings = state.warnings or (state.warning and { state.warning } or {}), warning_label = "Metadata incomplete",
     running = state.loading, cached = state.fetched_at ~= nil,
     age = state.fetched_at and math.max(0, state.now() - state.fetched_at) or nil })
   content = panel_header(opts, inner, slots, notice)
-  local visible, page = require("workbench.views").paginate(filtered, state.pages.reviews, state.size)
+  local visible, page = require("deskboard.views").paginate(filtered, state.pages.reviews, state.size)
   -- All ten columns stay present; widths depend on the frame, not the page.
   local sizes, labels, gap = review_columns(inner)
     local function cells(values, header)
@@ -680,7 +680,7 @@ function M.render_notes(opts)
   local function line(value, hl)
     content[#content + 1] = { text = { chunk(fit(value, inner), hl or "Muted") } }
   end
-  local notes = require("workbench.notes")
+  local notes = require("deskboard.notes")
   local rows = state:note_rows()
   local summary = notes.summary(state.notes)
   local filters = {}
@@ -693,7 +693,7 @@ function M.render_notes(opts)
       warnings[#warnings + 1] = note.title .. ": " .. (note.metadata_error or "Review requested/due")
     end
   end
-  local notice = require("workbench.status").format({ title = "Notes", local_only = true,
+  local notice = require("deskboard.status").format({ title = "Notes", local_only = true,
     warnings = warnings, warning_label = summary.review .. (summary.review == 1 and " note needs review" or " notes need review") })
   local slots = {
     [3] = { text = { chunk(fit(("Inbox %d · Review %d · Ready %d · Overdue %d"):format(summary.inbox, summary.review, summary.ready, summary.overdue), inner), "Title") } },
@@ -701,7 +701,7 @@ function M.render_notes(opts)
     [6] = { text = { chunk(fit(("%d/%d notes"):format(#rows, #state.notes), inner), "Muted") } },
   }
   content = panel_header(opts, inner, slots, notice)
-  local visible, page = require("workbench.views").paginate(rows, state.pages.notes, state.size)
+  local visible, page = require("deskboard.views").paginate(rows, state.pages.notes, state.size)
   local gap = inner >= 44 and 2 or inner >= 24 and 1 or 0
   local available = inner - gap * 4
   local sizes = { 12, 34, 10, 24, 24 }
@@ -751,13 +751,13 @@ function M.render_reminders(opts)
   local inner, content = outer - 6, {}
   local done = 0
   for _, row in ipairs(state.reminders) do done = done + (row.done and 1 or 0) end
-  local notice = require("workbench.status").format({ title = "Reminders", local_only = true })
+  local notice = require("deskboard.status").format({ title = "Reminders", local_only = true })
   content = panel_header(opts, inner, {
     [3] = { text = { chunk(fit("QUICK CAPTURES", inner), "Title") } },
     [4] = { text = { chunk(fit(("%d open · %d done"):format(#state.reminders - done, done), inner), "Muted") } },
     [6] = { text = { chunk(fit("Separate from knowledge notes · Enter edits source", inner), "Muted") } },
   }, notice)
-  local visible, page = require("workbench.views").paginate(state.reminders, state.pages.reminders, state.size)
+  local visible, page = require("deskboard.views").paginate(state.reminders, state.pages.reminders, state.size)
   local function line(value, hl) content[#content + 1] = { text = { chunk(fit(value, inner), hl or "Muted") } } end
   content[#content + 1] = { rule = true }
   line("REMINDERS · " .. #state.reminders, "Title")

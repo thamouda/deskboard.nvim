@@ -2,7 +2,7 @@ local M = {}
 local instances = {}
 
 function M.sections(self)
-  local cfg = require("workbench.config").get()
+  local cfg = require("deskboard.config").get()
   local GITLAB_HOST, GITLAB_PROJECT, REPO = cfg.providers.gitlab.host, cfg.providers.gitlab.project, cfg.actions.repo
   -- Parse ~/.notes/reminder.md into: an optional sprint (name +
   -- date range, for the progress bar), a heading (free-text lines),
@@ -33,18 +33,18 @@ function M.sections(self)
     end
     f:close()
   end
-  if cfg.demo then ticket_todos, sprint, personal_notes = require("workbench.demo").snapshot() end
-  local board = require("workbench.board")
-  local sync = cfg.providers.jira.enabled and require("workbench.sync") or { status = function() return {} end,
+  if cfg.demo then ticket_todos, sprint, personal_notes = require("deskboard.demo").snapshot() end
+  local board = require("deskboard.board")
+  local sync = cfg.providers.jira.enabled and require("deskboard.sync") or { status = function() return {} end,
     refresh = function() vim.notify("Jira provider is disabled", vim.log.levels.INFO) end }
-  local views = require("workbench.views").get({ buf = self.buf, host = GITLAB_HOST, project = GITLAB_PROJECT,
+  local views = require("deskboard.views").get({ buf = self.buf, host = GITLAB_HOST, project = GITLAB_PROJECT,
     proxy = cfg.providers.gitlab.proxy, token_command = cfg.providers.gitlab.token_command,
     enabled = cfg.providers.gitlab.enabled, page_size = cfg.page_size,
     changed = function() if self.win and vim.api.nvim_win_is_valid(self.win) and vim.api.nvim_win_get_buf(self.win) == self.buf
-      and type(self.update) == "function" then self:update() else require("workbench").redraw() end end })
+      and type(self.update) == "function" then self:update() else require("deskboard").redraw() end end })
   instances[self.buf] = self
   if cfg.demo then
-    views.rows, views.user, views.fetched_at = require("workbench.demo").reviews(), { username = "demo" }, os.time()
+    views.rows, views.user, views.fetched_at = require("deskboard.demo").reviews(), { username = "demo" }, os.time()
     views:set_total("reviews", #views.rows)
   end
   views:set_total("mine", #ticket_todos)
@@ -52,10 +52,10 @@ function M.sections(self)
   local active = views.active
   local selected_attr = active == "reviews" and "_review_selected" or active == "notes" and "_note_selected" or active == "reminders" and "_reminder_selected" or "_sprint_selected"
   if active == "notes" then
-    views:set_notes(cfg.demo and require("workbench.demo").notes()
-      or cfg.notes.enabled and require("workbench.notes").list({ reminders = {} }) or {})
+    views:set_notes(cfg.demo and require("deskboard.demo").notes()
+      or cfg.notes.enabled and require("deskboard.notes").list({ reminders = {} }) or {})
   end
-  local preview = require("workbench.preview").attach(self, {
+  local preview = require("deskboard.preview").attach(self, {
     host = GITLAB_HOST,
     project = GITLAB_PROJECT,
     proxy = cfg.providers.gitlab.proxy,
@@ -63,7 +63,7 @@ function M.sections(self)
     glow = cfg.preview.glow,
     glow_style = cfg.preview.glow_style,
   })
-  self._workbench_preview = preview
+  self._deskboard_preview = preview
   local function close_previews()
     preview:close()
     if self._note_popup then self._note_popup:close(); self._note_popup = nil end
@@ -77,14 +77,14 @@ function M.sections(self)
     local note = selected_note()
     if not note then return end
     close_previews()
-    self._note_popup = require("workbench.note_actions").details(note, self)
+    self._note_popup = require("deskboard.note_actions").details(note, self)
   end
-  if not self._workbench_lifecycle then
-    self._workbench_lifecycle = true
-    self._workbench_generation = (self._workbench_generation or 0) + 1
+  if not self._deskboard_lifecycle then
+    self._deskboard_lifecycle = true
+    self._deskboard_generation = (self._deskboard_generation or 0) + 1
     vim.api.nvim_create_autocmd("BufWipeout", { buffer = self.buf, once = true,
-      group = vim.api.nvim_create_augroup("workbench_owner_" .. self.buf, { clear = true }),
-      callback = function() close_previews(); require("workbench.views").release(self.buf); instances[self.buf] = nil end })
+      group = vim.api.nvim_create_augroup("deskboard_owner_" .. self.buf, { clear = true }),
+      callback = function() close_previews(); require("deskboard.views").release(self.buf); instances[self.buf] = nil end })
   end
   board.setup_highlights()
   local branch = active == "mine" and REPO and vim.fn.systemlist({ "git", "-C", REPO, "branch", "--show-current" }) or {}
@@ -105,9 +105,9 @@ function M.sections(self)
   if active == "reviews" then
     board_items, page_info, panel_status = board.render_reviews({ state = views, width = board_width, frame = frame, on_open = vim.ui.open })
   elseif active == "reminders" then
-    board_items, page_info, panel_status = board.render_reminders({ state = views, width = board_width, frame = frame, on_open = require("workbench.notes").open })
+    board_items, page_info, panel_status = board.render_reminders({ state = views, width = board_width, frame = frame, on_open = require("deskboard.notes").open })
   elseif active == "notes" then
-    board_items, page_info, panel_status = board.render_notes({ state = views, width = board_width, frame = frame, on_open = require("workbench.notes").open })
+    board_items, page_info, panel_status = board.render_notes({ state = views, width = board_width, frame = frame, on_open = require("deskboard.notes").open })
   else
     board_items, page_info, panel_status = board.render({
       project = GITLAB_PROJECT,
@@ -124,7 +124,7 @@ function M.sections(self)
         if not cfg.actions.checkout then
           vim.notify("Checkout is disabled; enable actions.checkout explicitly", vim.log.levels.INFO); return
         end
-        require("workbench.checkout").checkout(ticket, {
+        require("deskboard.checkout").checkout(ticket, {
           repo = REPO,
           on_success = function()
             Snacks.dashboard.update()
@@ -137,7 +137,7 @@ function M.sections(self)
   self._panel_status = panel_status
   vim.keymap.set("n", "!", function()
     close_previews()
-    self._status_popup = require("workbench.status").show(self._panel_status, self)
+    self._status_popup = require("deskboard.status").show(self._panel_status, self)
   end, { buffer = self.buf, nowait = true, desc = "Show full panel status / warnings" })
   for lhs, delta in pairs({ ["<Tab>"] = 1, ["<S-Tab>"] = -1 }) do
     vim.keymap.set("n", lhs, function()
@@ -163,9 +163,9 @@ function M.sections(self)
   for lhs, key in pairs({ C = "category", S = "status", t = "tag", Q = "queue" }) do
     vim.keymap.set("n", lhs, function()
       if views.active ~= "notes" then return end
-      local values = key == "status" and require("workbench.note_metadata").statuses
+      local values = key == "status" and require("deskboard.note_metadata").statuses
         or key == "queue" and { "inbox", "review", "ready", "overdue" }
-        or require("workbench.notes").facets(views.notes, key)
+        or require("deskboard.notes").facets(views.notes, key)
       local options = { { label = "All", value = false } }
       local queue_labels = { inbox = "Inbox", review = "Needs review", ready = "Ready to publish (saved, reviewed, team)", overdue = "Overdue" }
       for _, value in ipairs(values) do
@@ -183,14 +183,14 @@ function M.sections(self)
     vim.keymap.set("n", lhs, function()
       if views.active ~= "notes" then return end
       local note = selected_note()
-      if note then close_previews(); require("workbench.note_actions")[method](note) end
+      if note then close_previews(); require("deskboard.note_actions")[method](note) end
     end, { buffer = self.buf, nowait = true, desc = "Notes: " .. method })
   end
   vim.keymap.set("n", "+", function()
-    if views.active == "notes" then close_previews(); require("workbench.note_actions").new_prompt() end
+    if views.active == "notes" then close_previews(); require("deskboard.note_actions").new_prompt() end
   end, { buffer = self.buf, nowait = true, desc = "Notes: new structured draft" })
   vim.keymap.set("n", "F", function()
-    if views.active == "notes" then close_previews(); require("workbench.note_actions").search(views:note_rows()) end
+    if views.active == "notes" then close_previews(); require("deskboard.note_actions").search(views:note_rows()) end
   end, { buffer = self.buf, nowait = true, desc = "Notes: full-text search" })
   for lhs, delta in pairs({ ["[p"] = -1, ["]p"] = 1, ["<PageUp>"] = -1, ["<PageDown>"] = 1 }) do
     vim.keymap.set("n", lhs, function()
@@ -263,13 +263,13 @@ function M.sections(self)
     end
 
     local project = item.mr_project or GITLAB_PROJECT
-    local owner_generation = self._workbench_generation
+    local owner_generation = self._deskboard_generation
     local proj = project:gsub("/", "%%2F")
     local function authorized()
-      local current = require("workbench.config").get()
+      local current = require("deskboard.config").get()
       return current.actions.pipeline and current.providers.gitlab.enabled
         and current.providers.gitlab.host == GITLAB_HOST and current.providers.gitlab.project == GITLAB_PROJECT
-        and vim.api.nvim_buf_is_valid(self.buf) and self._workbench_lifecycle and self._workbench_generation == owner_generation
+        and vim.api.nvim_buf_is_valid(self.buf) and self._deskboard_lifecycle and self._deskboard_generation == owner_generation
     end
     vim.fn.jobstart({ "glab", "api", "--hostname", GITLAB_HOST, "-X", "GET",
       ("projects/%s/merge_requests/%s"):format(proj, item.mr_iid) }, {
@@ -325,7 +325,7 @@ function M.sections(self)
     local item = self:find(vim.api.nvim_win_get_cursor(self.win))
     if not item or not item.ticket then return end
     preview:close()
-    require("workbench.jira_edit").open(item, {
+    require("deskboard.jira_edit").open(item, {
       on_success = function()
         preview:invalidate()
         sync.refresh({ silent = true, queue = true })
@@ -342,8 +342,8 @@ function M.sections(self)
   -- Shared, cleared augroup: sections() reruns on every dashboard
   -- open/update (e.g. our jira-sync refresh), so autocmds must be
   -- replaced, not accumulated.
-  local augroup = vim.api.nvim_create_augroup("workbench_dashboard_" .. self.buf, { clear = true })
-  local cursor_ns = vim.api.nvim_create_namespace("workbench_cursor")
+  local augroup = vim.api.nvim_create_augroup("deskboard_dashboard_" .. self.buf, { clear = true })
+  local cursor_ns = vim.api.nvim_create_namespace("deskboard_cursor")
   local function update_ticket_hl()
     if
       views.active ~= active
@@ -367,7 +367,7 @@ function M.sections(self)
     local line = vim.api.nvim_buf_get_lines(self.buf, row - 1, row, false)[1] or ""
     pcall(vim.api.nvim_buf_set_extmark, self.buf, cursor_ns, row - 1, 0, {
       end_col = #line,
-      hl_group = "WorkbenchCursor",
+      hl_group = "DeskboardCursor",
       hl_mode = "combine",
       hl_eol = true,
     })
@@ -420,10 +420,10 @@ end
 function M.refresh()
   local owner = instances[vim.api.nvim_get_current_buf()]
   if not owner then M.redraw(); return end
-  local cfg = require("workbench.config").get()
-  local view = require("workbench.views").get({ buf = owner.buf })
+  local cfg = require("deskboard.config").get()
+  local view = require("deskboard.views").get({ buf = owner.buf })
   if view.active == "reviews" then view:refresh()
-  elseif view.active == "mine" and cfg.providers.jira.enabled then require("workbench.sync").refresh()
+  elseif view.active == "mine" and cfg.providers.jira.enabled then require("deskboard.sync").refresh()
   elseif type(owner.update) == "function" then owner:update() end
 end
 function M.redraw()
@@ -435,12 +435,12 @@ function M.redraw()
 end
 function M.dispose()
   for buf, owner in pairs(instances) do
-    require("workbench.views").release(buf)
-    if owner._workbench_preview then owner._workbench_preview:close(); owner._workbench_preview = nil end
+    require("deskboard.views").release(buf)
+    if owner._deskboard_preview then owner._deskboard_preview:close(); owner._deskboard_preview = nil end
     for _, name in ipairs({ "_note_popup", "_status_popup" }) do if owner[name] then owner[name]:close(); owner[name] = nil end end
-    pcall(vim.api.nvim_del_augroup_by_name, "workbench_owner_" .. buf)
-    pcall(vim.api.nvim_del_augroup_by_name, "workbench_dashboard_" .. buf)
-    owner._workbench_lifecycle = nil
+    pcall(vim.api.nvim_del_augroup_by_name, "deskboard_owner_" .. buf)
+    pcall(vim.api.nvim_del_augroup_by_name, "deskboard_dashboard_" .. buf)
+    owner._deskboard_lifecycle = nil
   end
   instances = {}
 end

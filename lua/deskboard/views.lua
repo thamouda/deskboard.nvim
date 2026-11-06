@@ -157,7 +157,7 @@ end
 
 function View:note_rows()
   if not next(self.note_filter) then return self.notes end
-  return require("workbench.notes").filter(self.notes, self.note_filter)
+  return require("deskboard.notes").filter(self.notes, self.note_filter)
 end
 
 function View:set_notes_filter(key, value)
@@ -224,7 +224,7 @@ function View:tabs(available_width)
   local labels = limit < 54 and { "M", "R", "N", "D" }
     or limit < 80 and { "Mine", "Reviews", "Notes", "Remind" } or { "My tickets", "Reviews for me", "Notes", "Reminders" }
   local function chunk(value, active)
-    return { value, hl = "Workbench" .. (active and "Accent" or "Muted") }
+    return { value, hl = "Deskboard" .. (active and "Accent" or "Muted") }
   end
   local parts = {}
   for i, name in ipairs(ORDER) do
@@ -255,10 +255,10 @@ function M.get(opts)
     return instances[opts.buf]
   end
   if not default then
-    opts.page_size = opts.page_size or require("workbench.config").get().page_size
+    opts.page_size = opts.page_size or require("deskboard.config").get().page_size
     default = M.new(opts)
     vim.api.nvim_create_autocmd("VimLeavePre", {
-      group = vim.api.nvim_create_augroup("workbench_default_views", { clear = true }),
+      group = vim.api.nvim_create_augroup("deskboard_default_views", { clear = true }),
       callback = function() if default then default:dispose() end end,
     })
   end

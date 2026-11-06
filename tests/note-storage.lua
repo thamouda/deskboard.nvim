@@ -3,10 +3,10 @@ dofile("tests/support/bootstrap.lua")
 -- Disposable vaults/state; browser launch is stubbed. No real notes/services.
 vim.opt.rtp:prepend(vim.fn.getcwd())
 vim.opt.hidden = true
-local notes = require("workbench.notes")
-local workflow = require("workbench.note_actions")
-local ids = require("workbench.note_ids")
-local metadata = require("workbench.note_metadata")
+local notes = require("deskboard.notes")
+local workflow = require("deskboard.note_actions")
+local ids = require("deskboard.note_ids")
+local metadata = require("deskboard.note_metadata")
 local uv = vim.uv
 local root = vim.fn.tempname() .. " note storage"
 local roots = { personal = root .. "/personal", work = root .. "/work" }

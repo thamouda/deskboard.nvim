@@ -2,7 +2,7 @@ dofile("tests/support/bootstrap.lua")
 -- Run: nvim --headless -u NONE -l tests/dashboard-clock.lua
 -- Pure clock fixtures and mocked dashboard integration; no real CLI/network.
 vim.opt.rtp:prepend(vim.fn.getcwd())
-local clock = require("workbench.clock")
+local clock = require("deskboard.clock")
 local locale = os.setlocale(nil, "time")
 os.setlocale("C", "time")
 local count = 0
@@ -98,19 +98,19 @@ test("the date and time use the dashboard palette and create no timer or process
   local highlighted_time = false
   for _, item in ipairs(result) do
     for _, part in ipairs(item.text) do
-      assert(part.hl:match("^Workbench"))
-      if part[1] == "18:04" then highlighted_time = part.hl == "WorkbenchAccent" end
+      assert(part.hl:match("^Deskboard"))
+      if part[1] == "18:04" then highlighted_time = part.hl == "DeskboardAccent" end
     end
   end
   assert(highlighted_time)
 end)
 
 test("the existing refresh timer is minute-aligned, idempotent, and redraw-only", function()
-  local core = require("workbench")
-  local adapter = require("workbench.adapter")
+  local core = require("deskboard")
+  local adapter = require("deskboard.adapter")
   local old_redraw = adapter.redraw
-  local cfg = require("workbench.config").get()
-  local sync = require("workbench.sync")
+  local cfg = require("deskboard.config").get()
+  local sync = require("deskboard.sync")
   local new_timer, defer, date, refresh, snacks = vim.uv.new_timer, vim.defer_fn, os.date, sync.refresh, _G.Snacks
   local timers, redraws = {}, 0
   vim.uv.new_timer = function()
@@ -139,10 +139,10 @@ test("the existing refresh timer is minute-aligned, idempotent, and redraw-only"
     assert(vim.wait(100, function() return redraws == 1 end))
     core.setup(cfg)
     assert(#timers == 2 and timers[1].stopped and timers[1].closed)
-    assert(#vim.api.nvim_get_autocmds({ group = "workbench_lifecycle", event = "VimLeavePre" }) == 1)
-    vim.api.nvim_exec_autocmds("VimLeavePre", { group = "workbench_lifecycle" })
+    assert(#vim.api.nvim_get_autocmds({ group = "deskboard_lifecycle", event = "VimLeavePre" }) == 1)
+    vim.api.nvim_exec_autocmds("VimLeavePre", { group = "deskboard_lifecycle" })
     assert(timers[2].stopped and timers[2].closed)
-    pcall(vim.api.nvim_del_augroup_by_name, "workbench_lifecycle")
+    pcall(vim.api.nvim_del_augroup_by_name, "deskboard_lifecycle")
   end, debug.traceback)
   adapter.redraw = old_redraw
   vim.uv.new_timer, vim.defer_fn, os.date, sync.refresh, _G.Snacks = new_timer, defer, date, refresh, snacks
@@ -150,22 +150,22 @@ test("the existing refresh timer is minute-aligned, idempotent, and redraw-only"
 end)
 
 test("the dashboard has tabs but no standalone clock or ASCII logo", function()
-  local names = { "workbench.board", "workbench.preview", "workbench.sync", "lazyvim.config" }
+  local names = { "deskboard.board", "deskboard.preview", "deskboard.sync", "lazyvim.config" }
   local saved = {}
   for _, name in ipairs(names) do saved[name] = package.loaded[name] end
-  package.loaded["workbench.board"] = { width = 124, setup_highlights = function() end,
+  package.loaded["deskboard.board"] = { width = 124, setup_highlights = function() end,
     frame = function() return {} end, render = function() return {} end }
-  package.loaded["workbench.preview"] = { attach = function() return {} end }
-  package.loaded["workbench.sync"] = { status = function() return {} end }
+  package.loaded["deskboard.preview"] = { attach = function() return {} end }
+  package.loaded["deskboard.sync"] = { status = function() return {} end }
   package.loaded["lazyvim.config"] = { icons = { kinds = {} } }
   local open, systemlist = io.open, vim.fn.systemlist
   io.open = function(path, mode)
-    if path == require("workbench.config").get().reminders.path then return nil end
+    if path == require("deskboard.config").get().reminders.path then return nil end
     return open(path, mode)
   end
   vim.fn.systemlist = function() return {} end
   local ok, err = xpcall(function()
-    local sections = require("workbench.adapter").sections
+    local sections = require("deskboard.adapter").sections
     assert(sections)
     local items = sections({ buf = vim.api.nvim_get_current_buf(), win = vim.api.nvim_get_current_win(), opts = {} })
     contains(text(items[1]), "My tickets")

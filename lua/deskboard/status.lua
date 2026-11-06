@@ -52,7 +52,7 @@ end
 
 function M.show(info, owner)
   if not info then return end
-  local popup = require("workbench.preview").popup(owner, info.details, { title = " Panel status · q close ", glow = false })
+  local popup = require("deskboard.preview").popup(owner, info.details, { title = " Panel status · q close ", glow = false })
   if popup then
     local group = vim.api.nvim_create_augroup("dashboard_status_" .. owner.buf, { clear = true })
     vim.api.nvim_create_autocmd({ "BufHidden", "BufWipeout" }, {

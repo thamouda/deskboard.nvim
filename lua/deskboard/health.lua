@@ -1,10 +1,10 @@
 local M = {}
 function M.check()
   local h = vim.health
-  h.start("Workbench runtime")
+  h.start("Deskboard runtime")
   if vim.fn.has("nvim-0.11") == 1 then h.ok("Neovim 0.11+") else h.error("Neovim 0.11+ is required") end
-  local cfg = require("workbench.config").get()
-  if vim.fn.exists(":Workbench") == 2 then h.ok("setup() registered commands") else h.warn("Call require('workbench').setup(opts)") end
+  local cfg = require("deskboard.config").get()
+  if vim.fn.exists(":Deskboard") == 2 then h.ok("setup() registered commands") else h.warn("Call require('deskboard').setup(opts)") end
   if #vim.api.nvim_get_runtime_file("lua/snacks/init.lua", false) > 0 then h.ok("Snacks available") else h.error("Install folke/snacks.nvim") end
   h.start("Optional providers (no API requests performed)")
   for name, executable in pairs({ jira = "jira", gitlab = "glab" }) do
@@ -16,7 +16,7 @@ function M.check()
   h.start("Local notes")
   h.info(cfg.notes.allow_writes and "Note writes explicitly enabled" or "Note writes disabled")
   if cfg.notes.enabled then
-    for scope, root in pairs(require("workbench.notes").roots()) do
+    for scope, root in pairs(require("deskboard.notes").roots()) do
       if vim.fn.isdirectory(root) == 1 then h.ok(scope .. " vault exists") else h.warn(scope .. " vault not created yet") end
     end
   else h.ok("Note indexing disabled") end

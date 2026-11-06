@@ -2,7 +2,7 @@ dofile("tests/support/bootstrap.lua")
 -- Run: nvim --headless -u NONE -l tests/sprint-markdown.lua
 -- Pure conversion fixtures; no plugins, CLI calls, network or real tickets.
 vim.opt.rtp:prepend(vim.fn.getcwd())
-local md = require("workbench.markdown")
+local md = require("deskboard.markdown")
 local count = 0
 local function test(name, fn)
   fn()

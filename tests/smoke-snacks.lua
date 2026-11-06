@@ -1,13 +1,13 @@
--- Optional real UI smoke. Set WORKBENCH_SNACKS to an installed snacks.nvim dir.
+-- Optional real UI smoke. Set DESKBOARD_SNACKS to an installed snacks.nvim dir.
 vim.opt.rtp:prepend(vim.fn.getcwd())
-local path = vim.env.WORKBENCH_SNACKS
-if not path or path == "" then print("SKIP: real Snacks smoke (set WORKBENCH_SNACKS)"); return end
+local path = vim.env.DESKBOARD_SNACKS
+if not path or path == "" then print("SKIP: real Snacks smoke (set DESKBOARD_SNACKS)"); return end
 vim.opt.rtp = { vim.fn.getcwd(), path, vim.env.VIMRUNTIME }
 vim.opt.packpath = { vim.env.VIMRUNTIME }
 local snacks = require("snacks")
 _G.Snacks = snacks
 snacks.setup({ dashboard = { enabled = false }, notifier = { enabled = false } })
-local core = require("workbench")
+local core = require("deskboard")
 local system, jobstart = vim.system, vim.fn.jobstart
 vim.system = function() error("Demo must not run a process") end
 vim.fn.jobstart = function() error("Demo must not start a job") end
@@ -16,7 +16,7 @@ local ok, err = xpcall(function()
   core.open()
   local buf = vim.api.nvim_get_current_buf()
   assert(vim.bo[buf].filetype == "snacks_dashboard")
-  local state = require("workbench.views").get({ buf = buf })
+  local state = require("deskboard.views").get({ buf = buf })
   for _, expected in ipairs({ "reviews", "notes", "reminders", "mine" }) do
     vim.fn.maparg("<Tab>", "n", false, true).callback()
     assert(state.active == expected)

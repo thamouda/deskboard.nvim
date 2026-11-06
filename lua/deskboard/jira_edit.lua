@@ -372,7 +372,7 @@ function Editor:preview()
     notify(err, vim.log.levels.WARN)
     return
   end
-  local md = require("workbench.markdown")
+  local md = require("deskboard.markdown")
   local lines = {
     "# Draft · " .. self.ticket,
     "",
@@ -389,7 +389,7 @@ function Editor:preview()
   end
   local opts =
     vim.tbl_extend("force", { title = " Jira draft preview · NOT PUBLISHED " }, self.opts.preview_opts or {})
-  self.popup = require("workbench.preview").popup({ buf = self.buf, win = self.win }, lines, opts)
+  self.popup = require("deskboard.preview").popup({ buf = self.buf, win = self.win }, lines, opts)
 end
 
 function Editor:failed(message)
@@ -585,7 +585,7 @@ function Editor:close()
 end
 
 function M.open(item, opts)
-  if not require("workbench.config").get().actions.jira_edit or not require("workbench.config").get().providers.jira.enabled then notify("Jira editing is disabled", vim.log.levels.WARN); return nil end
+  if not require("deskboard.config").get().actions.jira_edit or not require("deskboard.config").get().providers.jira.enabled then notify("Jira editing is disabled", vim.log.levels.WARN); return nil end
   local key = type(item) == "table" and item.ticket
   if type(key) ~= "string" or not key:match("^%u[%u%d]*%-%d+$") then
     notify("Select a sprint ticket first", vim.log.levels.WARN)
@@ -605,7 +605,7 @@ function M.open(item, opts)
     end
   end
   opts = opts or {}
-  local dir = opts.draft_dir or (vim.fn.stdpath("state") .. "/workbench/jira-drafts")
+  local dir = opts.draft_dir or (vim.fn.stdpath("state") .. "/deskboard/jira-drafts")
   local self =
     setmetatable({ ticket = key, opts = opts, dir = dir, path = dir .. "/" .. key .. ".json", sequence = 0 }, Editor)
   editors[key] = self
