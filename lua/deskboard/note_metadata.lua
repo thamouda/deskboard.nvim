@@ -57,12 +57,12 @@ end
 local function tags(value)
   local result, seen = {}, {}
   local function add(raw)
-    local value, err = scalar(raw)
+    local v, err = scalar(raw)
     if err then return err end
-    if value then
-      if value:find("[%z\1-\31\127]") then return "Tags must be single-line text" end
-      value = vim.trim(value):lower()
-      if value ~= "" and not seen[value] then seen[value] = true; result[#result + 1] = value end
+    if v then
+      if v:find("[%z\1-\31\127]") then return "Tags must be single-line text" end
+      v = vim.trim(v):lower()
+      if v ~= "" and not seen[v] then seen[v] = true; result[#result + 1] = v end
     end
   end
   if type(value) == "table" then

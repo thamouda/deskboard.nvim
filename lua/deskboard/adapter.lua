@@ -101,15 +101,15 @@ function M.sections(self)
   -- The shared date/time component belongs to each panel header.
   local sections = { views:tabs(board_width) }
   local frame = board.frame({ width = board_width, page_size = views.size })
-  local board_items, page_info, panel_status
+  local board_items, _page_info, panel_status -- luacheck: ignore 231
   if active == "reviews" then
-    board_items, page_info, panel_status = board.render_reviews({ state = views, width = board_width, frame = frame, on_open = vim.ui.open })
+    board_items, _page_info, panel_status = board.render_reviews({ state = views, width = board_width, frame = frame, on_open = vim.ui.open })
   elseif active == "reminders" then
-    board_items, page_info, panel_status = board.render_reminders({ state = views, width = board_width, frame = frame, on_open = require("deskboard.notes").open })
+    board_items, _page_info, panel_status = board.render_reminders({ state = views, width = board_width, frame = frame, on_open = require("deskboard.notes").open })
   elseif active == "notes" then
-    board_items, page_info, panel_status = board.render_notes({ state = views, width = board_width, frame = frame, on_open = require("deskboard.notes").open })
+    board_items, _page_info, panel_status = board.render_notes({ state = views, width = board_width, frame = frame, on_open = require("deskboard.notes").open })
   else
-    board_items, page_info, panel_status = board.render({
+    board_items, _page_info, panel_status = board.render({
       project = GITLAB_PROJECT,
       page = views.pages.mine,
       page_size = views.size,
@@ -282,10 +282,10 @@ function M.sections(self)
             or type(mr_data.source_branch) ~= "string" then
             vim.notify("Failed to verify MR details", vim.log.levels.ERROR); return
           end
-          local branch = mr_data.source_branch
+          local mr_branch = mr_data.source_branch
           vim.ui.select({ "Cancel", "Run pipeline" }, { prompt = "Run pipeline for " .. project .. " !" .. item.mr_iid .. "?" }, function(choice)
             if choice ~= "Run pipeline" or not authorized() then return end
-            vim.fn.jobstart({ "glab", "pipeline", "run", "-b", branch, "-R", "https://" .. GITLAB_HOST .. "/" .. project }, {
+            vim.fn.jobstart({ "glab", "pipeline", "run", "-b", mr_branch, "-R", "https://" .. GITLAB_HOST .. "/" .. project }, {
               on_exit = function(_, code)
                 vim.schedule(function() vim.notify(code == 0 and "✓ Pipeline started" or "Pipeline failed",
                   code == 0 and vim.log.levels.INFO or vim.log.levels.ERROR) end)

@@ -1,5 +1,7 @@
 # deskboard.nvim
 
+[![test](https://github.com/thamouda/deskboard.nvim/actions/workflows/ci.yml/badge.svg)](https://github.com/thamouda/deskboard.nvim/actions/workflows/ci.yml)
+
 A Snacks-backed Neovim dashboard for tickets, review assignments, local knowledge
 notes, and quick reminders. Shared fixed frames, title-bar clocks, pagination,
 author/metadata filters, and concise status badges.

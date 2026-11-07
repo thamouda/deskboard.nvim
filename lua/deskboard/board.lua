@@ -55,7 +55,7 @@ local function wrap(text, limit)
   for word in text:gmatch("%S+") do
     if width(word) > limit then
       if line ~= "" then
-        lines[#lines + 1], line = line, ""
+        lines[#lines + 1] = line
       end
       -- Long URLs/identifiers must not push the card beyond its border.
       local part = ""
@@ -405,7 +405,7 @@ end
 
 -- Five context/status rows are shared by all panels. The date/time is rendered
 -- at the right of the title border, not as separate content rows.
-local function panel_header(opts, inner, slots, notice)
+local function panel_header(_opts, inner, slots, notice)
   local result = {}
   for i = 3, 6 do
     result[i - 2] = slots[i] or { text = {} }

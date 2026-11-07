@@ -143,7 +143,7 @@ function M.index(note)
   return true
 end
 
-function M.watch(note, buf)
+function M.watch(_note, buf)
   if not require("deskboard.config").writable() then return end
   buf = buf or vim.api.nvim_get_current_buf()
   if vim.b[buf].deskboard_note_watched then return end

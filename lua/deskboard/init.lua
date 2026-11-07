@@ -1,6 +1,5 @@
 local M = {}
 local timer
-local commands = { "Deskboard", "DeskboardRefresh" }
 
 function M.redraw() require("deskboard.adapter").redraw() end
 function M.sections(owner) return require("deskboard.adapter").sections(owner) end
