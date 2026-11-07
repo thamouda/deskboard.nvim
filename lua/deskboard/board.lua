@@ -4,16 +4,24 @@ local M = { width = 124, header_rows = 5 }
 local H = "Deskboard"
 -- Match Snacks' context-independent cell widths, including CJK characters.
 local width = vim.api.nvim_strwidth
-local NAV_HELP = "Tab switch board   [p / ]p page   ! status"
+-- Keymap legends: {key, description} pairs. Rendered with the key in a
+-- distinct accent colour and the description muted, so available keymaps
+-- are readable at a glance instead of a flat wall of grey text.
+local NAV_HELP = { { "Tab", "switch board" }, { "[p/]p", "page" }, { "!", "status" } }
 local MINE_HELP = {
-  "j/k move   Enter checkout (auto-stash)   K/P preview",
-  "E edit ticket   o Jira   x MR   p pipeline   R refresh   N notes",
+  { { "j/k", "move" }, { "Enter", "checkout (auto-stash)" }, { "K/P", "preview" } },
+  { { "E", "edit ticket" }, { "o", "Jira" }, { "x", "MR" }, { "p", "pipeline" }, { "R", "refresh" }, { "N", "notes" } },
 }
-local REVIEW_HELP = "Enter/o/x open MR   K/P preview   R refresh"
-local FILTER_HELP = "a filter author   A clear filter"
-local NOTES_HELP = "Enter/o open   K/P details   R refresh   N back"
-local NOTE_FILTER_HELP = "C category   S status   t tag   Q queue   A clear"
-local NOTE_ACTION_HELP = "+ new   M status   v reviewed   V visibility   F search   D delete   B browser"
+local REVIEW_HELP = { { "Enter/o/x", "open MR" }, { "K/P", "preview" }, { "R", "refresh" } }
+local FILTER_HELP = { { "a", "filter author" }, { "A", "clear filter" } }
+local NOTES_HELP = { { "Enter/o", "open" }, { "K/P", "details" }, { "R", "refresh" }, { "N", "back" } }
+local NOTE_FILTER_HELP = { { "C", "category" }, { "S", "status" }, { "t", "tag" }, { "Q", "queue" }, { "A", "clear" } }
+local NOTE_ACTION_HELP = {
+  { "+", "new" }, { "M", "status" }, { "v", "reviewed" }, { "V", "visibility" },
+  { "F", "search" }, { "D", "delete" }, { "B", "browser" },
+}
+local REMINDER_HELP = { { "Enter/o", "edit reminder source" }, { "R", "refresh" } }
+local LEGEND_SEP = " · "
 
 local function chunk(text, hl)
   return { text, hl = H .. (hl or "") }
@@ -70,6 +78,46 @@ local function wrap(text, limit)
     lines[#lines + 1] = line
   end
   return lines
+end
+
+-- Wrap {key, description} pairs onto lines that fit `limit` cells. A pair
+-- is never split across lines; an oversized single pair is truncated by
+-- display cells, same as free-text help used to be.
+local function wrap_legend(pairs, limit)
+  local lines, current, current_width = {}, {}, 0
+  for _, pair in ipairs(pairs) do
+    local pair_width = width(pair[1]) + 1 + width(pair[2])
+    local add = pair_width + (#current > 0 and width(LEGEND_SEP) or 0)
+    if #current > 0 and current_width + add > limit then
+      lines[#lines + 1], current, current_width = current, {}, 0
+      add = pair_width
+    end
+    current[#current + 1] = pair
+    current_width = current_width + add
+  end
+  if #current > 0 then
+    lines[#lines + 1] = current
+  end
+  return lines
+end
+
+-- Render one wrapped legend line: the key stands out (bold accent colour),
+-- the description stays muted, pairs are separated by a clear middle dot.
+local function legend_chunks(pairs, limit)
+  local chunks, used = {}, 0
+  for i, pair in ipairs(pairs) do
+    if i > 1 then
+      chunks[#chunks + 1] = chunk(LEGEND_SEP, "Muted")
+      used = used + width(LEGEND_SEP)
+    end
+    local key = fit(pair[1], math.max(1, limit - used))
+    used = used + width(key)
+    chunks[#chunks + 1] = chunk(key, "Key")
+    local desc = fit(" " .. pair[2], math.max(0, limit - used))
+    used = used + width(desc)
+    chunks[#chunks + 1] = chunk(desc, "Muted")
+  end
+  return chunks
 end
 
 local function parse_ts(ts)
@@ -280,13 +328,13 @@ function M.frame(opts)
   local outer = math.max(16, opts.width or M.width)
   local inner = outer - 6
   local size = math.max(1, math.floor(tonumber(opts.page_size) or 6))
-  local help = #wrap(NAV_HELP, inner)
-  for _, value in ipairs(MINE_HELP) do help = help + #wrap(value, inner) end
+  local help = #wrap_legend(NAV_HELP, inner)
+  for _, value in ipairs(MINE_HELP) do help = help + #wrap_legend(value, inner) end
   local groups = size > 1 and 6 or 3 -- rule, group label, column headings
   local mine = M.header_rows + groups + size + 1 + 1 + help
-  local reviews = M.header_rows + 3 + size + 1 + 1 + #wrap(NAV_HELP, inner) + #wrap(REVIEW_HELP, inner) + #wrap(FILTER_HELP, inner)
-  local notes = M.header_rows + 3 + size + 1 + 1 + #wrap(NAV_HELP, inner) + #wrap(NOTES_HELP, inner)
-    + #wrap(NOTE_FILTER_HELP, inner) + #wrap(NOTE_ACTION_HELP, inner)
+  local reviews = M.header_rows + 3 + size + 1 + 1 + #wrap_legend(NAV_HELP, inner) + #wrap_legend(REVIEW_HELP, inner) + #wrap_legend(FILTER_HELP, inner)
+  local notes = M.header_rows + 3 + size + 1 + 1 + #wrap_legend(NAV_HELP, inner) + #wrap_legend(NOTES_HELP, inner)
+    + #wrap_legend(NOTE_FILTER_HELP, inner) + #wrap_legend(NOTE_ACTION_HELP, inner)
   return { width = outer, height = math.max(mine, reviews, notes) + 2, now = opts.now }
 end
 
@@ -526,13 +574,13 @@ function M.render(opts)
     if page_info then
       content[#content + 1] = line(("Page %d/%d · %d–%d of %d"):format(
         page_info.page, page_info.pages, page_info.first, page_info.last, page_info.total), "Muted")
-      for _, text in ipairs(wrap(NAV_HELP, inner)) do
-        content[#content + 1] = line(text, "Muted")
+      for _, pairs in ipairs(wrap_legend(NAV_HELP, inner)) do
+        content[#content + 1] = row(legend_chunks(pairs, inner))
       end
     end
     for _, help in ipairs(MINE_HELP) do
-      for _, text in ipairs(wrap(help, inner)) do
-        content[#content + 1] = line(text, "Muted")
+      for _, pairs in ipairs(wrap_legend(help, inner)) do
+        content[#content + 1] = row(legend_chunks(pairs, inner))
       end
     end
   else
@@ -668,7 +716,9 @@ function M.render_reviews(opts)
   content[#content + 1] = { rule = true }
   line(("Page %d/%d · %d–%d of %d"):format(page.page, page.pages, page.first, page.last, page.total))
   for _, help in ipairs({ NAV_HELP, REVIEW_HELP, FILTER_HELP }) do
-    for _, value in ipairs(wrap(help, inner)) do line(value) end
+    for _, pairs in ipairs(wrap_legend(help, inner)) do
+      content[#content + 1] = { text = legend_chunks(pairs, inner) }
+    end
   end
   return card("REVIEWS FOR ME", content, outer, opts.frame, opts.now), page, notice
 end
@@ -740,7 +790,9 @@ function M.render_notes(opts)
   content[#content + 1] = { rule = true }
   line(("Page %d/%d · %d–%d of %d"):format(page.page, page.pages, page.first, page.last, page.total))
   for _, help in ipairs({ NAV_HELP, NOTES_HELP, NOTE_FILTER_HELP, NOTE_ACTION_HELP }) do
-    for _, value in ipairs(wrap(help, inner)) do line(value) end
+    for _, pairs in ipairs(wrap_legend(help, inner)) do
+      content[#content + 1] = { text = legend_chunks(pairs, inner) }
+    end
   end
   return card("LOCAL NOTES", content, outer, opts.frame, opts.now), page, notice
 end
@@ -774,8 +826,10 @@ function M.render_reminders(opts)
   content[#content + 1] = { spacer = true }
   content[#content + 1] = { rule = true }
   line(("Page %d/%d · %d–%d of %d"):format(page.page, page.pages, page.first, page.last, page.total))
-  for _, help in ipairs({ NAV_HELP, "Enter/o edit reminder source   R refresh" }) do
-    for _, value in ipairs(wrap(help, inner)) do line(value) end
+  for _, help in ipairs({ NAV_HELP, REMINDER_HELP }) do
+    for _, pairs in ipairs(wrap_legend(help, inner)) do
+      content[#content + 1] = { text = legend_chunks(pairs, inner) }
+    end
   end
   return card("REMINDERS", content, outer, opts.frame, opts.now), page, notice
 end
