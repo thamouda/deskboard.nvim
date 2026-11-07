@@ -52,6 +52,7 @@ All remote integrations and writes are disabled by default:
 opts = {
   width = 124,
   page_size = 6,
+  repo_config = { enabled = false }, -- opt in to trusted .deskboard.json routing
   notes = {
     enabled = true,
     roots = {
@@ -70,6 +71,7 @@ opts = {
       project = "example/project", -- set the real project privately
       -- proxy = "http://your-proxy:port",
       -- token_command = { "your-secret-helper", "entry" },
+      -- cache_file = vim.fn.stdpath("state") .. "/deskboard/reviews.json",
     },
   },
   actions = { checkout = false, pipeline = false, jira_edit = false },
@@ -82,12 +84,79 @@ GitLab reviews use configured `glab` authentication/environment; no password
 manager is invoked unless you explicitly configure `token_command`. The bundled
 Python backend has no pip dependencies. Jira snapshots use configured `jira`
 authentication. Enable `auto_refresh` deliberately. A custom Jira `command` argv
-is supported for private environment/credential wrappers.
+is supported for private environment/credential wrappers in global configuration
+mode. Repo-config mode uses the bundled backend to enforce the selected Jira
+project.
 
 Git operations require an explicit `actions.repo` and `actions.checkout` opt-in.
 Note creation/status/visibility/index/trash/ID operations require
 `notes.enabled` **and** `notes.allow_writes`. Remote Jira edits and pipelines have
 separate flags. Demo mode refuses any enabled live provider or writable action.
+
+## Per-repository providers
+
+Enable repository discovery explicitly in your existing setup options:
+
+```lua
+repo_config = { enabled = true }
+```
+
+Deskboard finds `.deskboard.json` from the current working directory, including
+subdirectories. It stops at the nearest Git boundary, so an unconfigured nested
+repository cannot inherit another project's providers. Config files require
+Neovim's `vim.secure.read` trust approval; changed content must be approved again.
+Missing, rejected or invalid configs disable remote providers, rather than
+falling back to another repository's global provider settings. Without a usable
+repo config, tickets/issues and reviews panels are hidden: the dashboard opens
+Notes, and Tab/Shift-Tab cycles only Notes and Reminders. A missing config is a
+normal local-only workspace, not a warning. Trust/validation failures still
+report diagnostics. Demo mode ignores repo configs.
+
+Exactly two version-1 configurations are supported:
+
+**GitHub issues + PR reviews** (github.com only):
+
+```json
+{
+  "version": 1,
+  "issues": { "provider": "github", "project": "owner/project" },
+  "reviews": { "provider": "github", "project": "owner/project" }
+}
+```
+
+**Jira tickets + GitLab MR reviews:**
+
+```json
+{
+  "version": 1,
+  "issues": { "provider": "jira", "project": "APP" },
+  "reviews": {
+    "provider": "gitlab",
+    "host": "gitlab.example.com",
+    "project": "team/project"
+  }
+}
+```
+
+GitHub lists your assigned open issues and open PRs directly requesting your
+review, excluding your own PRs. `o`/Enter opens an issue; `K`/`P` shows read-only
+issue or PR details. GitHub issue rows never enable Jira editing, ticket checkout
+or GitLab pipelines. Jira keeps the existing current-sprint ticket view, now
+scoped to the configured Jira project.
+
+Changing Neovim's working directory reloads routing, cancels old provider
+requests and resets dashboard selections. `:DeskboardReloadConfig` reloads an
+edited config without changing directory. Caches live under
+`stdpath('state')/deskboard/repositories/<identity>/`, isolated by checkout,
+provider, host and project; issue/review snapshots are separate. Existing global
+snapshots are not migrated or overwritten in this mode. Notes/reminders remain
+your globally configured local data.
+
+Keep authentication in `gh auth login`, `glab auth login`, Jira CLI configuration
+or environment variables. Repo JSON may specify only the fields above—no tokens,
+commands, Lua, note paths or write permissions. Existing action opt-ins remain
+required; a trusted repo config selects the checkout directory but cannot enable
+writes. Bitbucket and mixed GitHub/Jira configurations are not supported yet.
 
 ## Dependencies
 
@@ -96,6 +165,7 @@ separate flags. Demo mode refuses any enabled live provider or writable action.
 | Dashboard | Neovim 0.11+, `folke/snacks.nvim` |
 | Notes/reminders/rendering | No external tool |
 | GitLab reviews | Python 3 (standard library), `glab` |
+| GitHub issues / PR reviews | Python 3 (standard library), `gh` |
 | Jira snapshots/editing | `jira`; Python for bundled snapshot backend |
 | Checkout/stash | Git, explicit opt-in |
 | Full-text notes search | Telescope + ripgrep |
@@ -109,9 +179,11 @@ No Docker, LSP, neotest, database, or personal configuration modules are require
 Buffer-local: Tab / Shift-Tab cycles panels; `[p` / `]p` or PageUp/PageDown pages;
 `!` opens full safe status diagnostics; `R` refreshes the active panel.
 
+- GitHub issues: your assigned open issues, titles and labels; browser open and
+  read-only Markdown details, with no Jira dependency.
 - Tickets: project, MR/CI, discussions and approval metadata; checkout/edit/
   pipeline actions disabled unless configured.
-- Reviews: only open MRs explicitly assigned to the authenticated reviewer,
+- Reviews: open GitHub PR review requests or open GitLab MRs explicitly assigned to the authenticated reviewer,
   excluding authored MRs. `a` selects author; `A` clears it. MR is first; targets
   show `main` or ticket keys; threads are resolved/total. Approved is your status
   plus distinct other approvers. My threads counts discussions you started,
@@ -121,7 +193,7 @@ Buffer-local: Tab / Shift-Tab cycles panels; `[p` / `]p` or PageUp/PageDown page
   details. `+`, M, v, V and D are writable actions and require explicit opt-in.
 - Reminders: separate quick captures; Enter/o edits source, not article metadata.
 
-Commands are namespaced: `:Deskboard`, `:DeskboardRefresh`,
+Commands are namespaced: `:Deskboard`, `:DeskboardRefresh`, `:DeskboardReloadConfig`,
 `:DeskboardNotesNew`, `:DeskboardNotesStatus`, `:DeskboardNotesReviewed`,
 `:DeskboardNotesVisibility`, `:DeskboardNotesSearch`, `:DeskboardNotesIndex`,
 `:DeskboardNotesDelete`, `:DeskboardNotesAssignID`, `:DeskboardNotesBrowser`.
@@ -147,6 +219,14 @@ reservations, set `notes.id_state_dir` to the original allocator directory or
 explicitly migrate its high-water JSON; do not simply delete/reset it. Existing
 IDs are not silently changed. `notes.legacy_globals=true` is an optional legacy
 bridge; normal installs use `setup(opts)` only.
+
+Like ticket snapshots, the last successful review queue is saved locally at
+`stdpath('state')/deskboard/reviews.json` (override with
+`providers.gitlab.cache_file`). Reviews load immediately from this cache after a
+restart and refresh when you visit the panel; `R` forces a refresh. Failed
+requests retain the saved list, while a successful empty queue clears it. Cached
+snapshots are matched to the configured GitLab host/project and labeled cached
+until refreshed. The file contains review metadata, not credentials.
 
 Cached records/credentials are not shipped in the repository. Remote errors are
 sanitized and callbacks cancelled on teardown. Each dashboard buffer owns its

@@ -41,6 +41,7 @@ function M.new(opts)
   if not command then
     command = { "python3", require("deskboard.config").root() .. "/scripts/sprint-sync.py", "--reminder", reminder,
       "--host", cfg.providers.gitlab.host, "--project", cfg.providers.gitlab.project or "", "--proxy", cfg.providers.gitlab.proxy or "" }
+    if cfg.providers.jira.project then vim.list_extend(command, { "--jira-project", cfg.providers.jira.project }) end
     if not cfg.providers.gitlab.enabled then command[#command + 1] = "--no-gitlab" end
     if cfg.providers.gitlab.token_command then vim.list_extend(command, { "--token-command", vim.json.encode(cfg.providers.gitlab.token_command) }) end
   end

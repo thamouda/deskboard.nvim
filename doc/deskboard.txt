@@ -17,9 +17,23 @@ Configure the section factory in Snacks dashboard opts, with Deskboard as a
 Snacks dependency. Do not call Snacks.setup() from Deskboard setup.
 Default providers and notes writes are disabled. See README.md for full options.
 
+Opt in to trusted per-repository routing with:
+>
+  require("deskboard").setup({ repo_config = { enabled = true } })
+<
+Repository .deskboard.json files support exactly two combinations: GitHub issues
+and PR reviews, or Jira tickets and GitLab MR reviews. See README.md for JSON
+examples. Discovery follows the current working directory up to the nearest Git
+root, including subdirectories. Neovim prompts to trust the file before providers
+are enabled. Missing/rejected/invalid files disable remote providers and hide
+tickets/issues and reviews panels. The dashboard opens Notes; Tab/S-Tab cycles
+only Notes and Reminders. Missing configs do not produce warnings. Changing
+working directory cancels old requests and switches providers/caches/panels.
+
 COMMANDS                                             *deskboard-commands*
 :Deskboard                   Open the dashboard
 :DeskboardRefresh            Refresh active panel
+:DeskboardReloadConfig       Reload trusted repository .deskboard.json
 :checkhealth deskboard        Dependency/configuration checks (no API calls)
 :DeskboardNotesNew            New structured note (requires writes opt-in)
 :DeskboardNotesStatus         Change local note status
@@ -43,5 +57,17 @@ stay in the buffer until :w; deletion uses local trash and confirmation. Existin
 note IDs and old high-water reservations must be preserved during migration.
 Git checkout, pipeline and Jira-edit actions require separate explicit opt-ins.
 Demo mode must remain offline/read-only. See README.md for details and limitations.
+
+Reviews persist the last successful list in stdpath('state')/deskboard/reviews.json.
+Set providers.gitlab.cache_file to override the path. Cached reviews are restored
+for the same host/project on restart, then refreshed on visiting the panel (or R).
+Failed requests keep the saved snapshot; successful empty queues clear it.
+Only review metadata is saved, never credentials.
+
+Repo-config mode stores separate issue/review caches and Jira snapshots below
+stdpath('state')/deskboard/repositories/, isolated by checkout/provider/project.
+GitHub uses gh authentication; Jira and GitLab use their existing CLI credentials.
+No credentials, commands, executable Lua or write permissions belong in repo JSON.
+GitHub issues and PR previews are read-only and never invoke Jira or glab.
 
 vim:tw=78:ts=2:ft=help:norl:

@@ -1,9 +1,11 @@
 local M = {}
 local defaults = {
   width = 124, page_size = 6, demo = false,
+  repo_config = { enabled = false },
   providers = {
-    jira = { enabled = false, auto_refresh = false, snapshot = nil, command = nil, state_file = nil },
-    gitlab = { enabled = false, host = "gitlab.com", project = nil, proxy = nil, token_command = nil },
+    jira = { enabled = false, auto_refresh = false, snapshot = nil, command = nil, state_file = nil, project = nil },
+    gitlab = { enabled = false, host = "gitlab.com", project = nil, proxy = nil, token_command = nil, cache_file = nil },
+    github = { enabled = false, host = "github.com", project = nil, cache_file = nil, issues_cache_file = nil },
   },
   notes = { enabled = false, roots = {}, allow_writes = false, legacy_globals = false,
     review_days = 90, id_state_dir = nil, index_root = nil },
@@ -25,7 +27,8 @@ function M.set(opts)
   assert(type(next_options.width) == "number" and next_options.width >= 16 and next_options.width < math.huge, "deskboard.width must be >=16")
   assert(type(next_options.page_size) == "number" and next_options.page_size >= 1 and next_options.page_size < math.huge, "deskboard.page_size must be >=1")
   assert(type(next_options.refresh_interval) == "number" and next_options.refresh_interval > 0 and next_options.refresh_interval < math.huge, "Invalid refresh_interval")
-  for _, name in ipairs({ "jira", "gitlab" }) do boolean(next_options.providers[name].enabled, name .. ".enabled") end
+  for _, name in ipairs({ "jira", "gitlab", "github" }) do boolean(next_options.providers[name].enabled, name .. ".enabled") end
+  boolean(next_options.repo_config.enabled, "repo_config.enabled")
   boolean(next_options.providers.jira.auto_refresh, "jira.auto_refresh")
   for _, name in ipairs({ "enabled", "allow_writes", "legacy_globals" }) do boolean(next_options.notes[name], "notes." .. name) end
   for _, name in ipairs({ "checkout", "pipeline", "jira_edit" }) do boolean(next_options.actions[name], "actions." .. name) end
@@ -36,8 +39,17 @@ function M.set(opts)
   next_options.page_size = math.floor(next_options.page_size)
   next_options.notes.id_state_dir = next_options.notes.id_state_dir or vim.fn.stdpath("state") .. "/deskboard/note-ids"
   next_options.providers.jira.state_file = next_options.providers.jira.state_file or vim.fn.stdpath("state") .. "/deskboard/sync.json"
+  next_options.providers.gitlab.cache_file = next_options.providers.gitlab.cache_file or vim.fn.stdpath("state") .. "/deskboard/reviews.json"
+  assert(type(next_options.providers.gitlab.cache_file) == "string" and next_options.providers.gitlab.cache_file ~= "", "Invalid gitlab.cache_file")
+  for _, key in ipairs({ "cache_file", "issues_cache_file" }) do
+    next_options.providers.github[key] = next_options.providers.github[key] or vim.fn.stdpath("state") .. "/deskboard/github-" .. (key == "cache_file" and "reviews" or "issues") .. ".json"
+    assert(type(next_options.providers.github[key]) == "string" and next_options.providers.github[key] ~= "", "Invalid github." .. key)
+  end
+  if next_options.providers.jira.project ~= nil then
+    assert(type(next_options.providers.jira.project) == "string" and next_options.providers.jira.project:match("^[A-Z][A-Z0-9_]*$"), "Invalid Jira project key")
+  end
   if next_options.demo then
-    assert(not next_options.providers.jira.enabled and not next_options.providers.gitlab.enabled and not next_options.notes.allow_writes
+    assert(not next_options.providers.jira.enabled and not next_options.providers.gitlab.enabled and not next_options.providers.github.enabled and not next_options.notes.allow_writes
       and not next_options.actions.checkout and not next_options.actions.pipeline and not next_options.actions.jira_edit, "Demo mode must remain offline/read-only")
   end
   if next_options.providers.jira.enabled then
@@ -46,6 +58,13 @@ function M.set(opts)
   if next_options.providers.gitlab.enabled then
     assert(type(next_options.providers.gitlab.project) == "string" and next_options.providers.gitlab.project ~= "", "GitLab project is required")
     assert(type(next_options.providers.gitlab.host) == "string" and next_options.providers.gitlab.host ~= "", "GitLab host is required")
+  end
+  if next_options.providers.github.enabled then
+    assert(not next_options.providers.jira.enabled and not next_options.providers.gitlab.enabled, "GitHub-only cannot be mixed with Jira/GitLab")
+    assert(next_options.providers.github.host == "github.com", "Only github.com is supported")
+    require("deskboard.repo_config").validate({ version = 1,
+      issues = { provider = "github", project = next_options.providers.github.project },
+      reviews = { provider = "github", project = next_options.providers.github.project } })
   end
   options = next_options -- failed validation never installs a partially unsafe config
   return options

@@ -3,14 +3,17 @@ local instances = {}
 
 function M.sections(self)
   local cfg = require("deskboard.config").get()
-  local GITLAB_HOST, GITLAB_PROJECT, REPO = cfg.providers.gitlab.host, cfg.providers.gitlab.project, cfg.actions.repo
+  local github = cfg.providers.github.enabled
+  local remote = github and cfg.providers.github or cfg.providers.gitlab
+  local GITLAB_HOST, GITLAB_PROJECT, REPO = remote.host, remote.project, cfg.actions.repo
   -- Parse ~/.notes/reminder.md into: an optional sprint (name +
   -- date range, for the progress bar), a heading (free-text lines),
   -- and a todo list (markdown checkbox lines: `- [ ]` / `- [x]`).
   local ticket_todos, personal_notes, sprint = {}, {}, nil
   local reminder = cfg.reminders.path or cfg.providers.jira.snapshot
-  local f = reminder and io.open(vim.fn.expand(reminder), "r") or nil
-  if f then
+  local function read_snapshot(path, tickets, personal)
+    local f = path and io.open(vim.fn.expand(path), "r") or nil
+    if not f then return end
     local lnum = 0
     for line in f:lines() do
       lnum = lnum + 1
@@ -20,26 +23,30 @@ function M.sections(self)
         local done, text = line:match("^%-%s*%[([ xX])%]%s*(.*)$")
         local ticket = text and text:match("^(%u[%u%d]*%-%d+)")
         if name then
-          sprint = { name = name, start = start, stop = stop }
+          if tickets then sprint = { name = name, start = start, stop = stop } end
         elseif ticket then
-          ticket_todos[#ticket_todos + 1] = { ticket = ticket, text = text, done = done == "x" or done == "X" }
-        elseif not line:match("^synced %d%d:%d%d$") then
-          personal_notes[#personal_notes + 1] = {
-            id = "reminder:" .. lnum, title = (text or line):gsub("^#+%s*", ""),
-            path = reminder, lnum = lnum, done = done == "x" or done == "X",
-          }
+          if tickets then ticket_todos[#ticket_todos + 1] = { ticket = ticket, text = text, done = done == "x" or done == "X" } end
+        elseif personal and not line:match("^synced %d%d:%d%d$") then
+          personal_notes[#personal_notes + 1] = { id = "reminder:" .. lnum, title = (text or line):gsub("^#+%s*", ""),
+            path = path, lnum = lnum, done = done == "x" or done == "X" }
         end
       end
     end
     f:close()
   end
+  if cfg.repo_config.enabled then
+    if cfg.providers.jira.enabled then read_snapshot(cfg.providers.jira.snapshot, true, false) end
+    read_snapshot(reminder, false, true)
+  else read_snapshot(reminder, true, true) end
   if cfg.demo then ticket_todos, sprint, personal_notes = require("deskboard.demo").snapshot() end
   local board = require("deskboard.board")
   local sync = cfg.providers.jira.enabled and require("deskboard.sync") or { status = function() return {} end,
     refresh = function() vim.notify("Jira provider is disabled", vim.log.levels.INFO) end }
   local views = require("deskboard.views").get({ buf = self.buf, host = GITLAB_HOST, project = GITLAB_PROJECT,
     proxy = cfg.providers.gitlab.proxy, token_command = cfg.providers.gitlab.token_command,
-    enabled = cfg.providers.gitlab.enabled, page_size = cfg.page_size,
+    provider = github and "github" or "gitlab", enabled = remote.enabled, page_size = cfg.page_size, cache_file = remote.cache_file,
+    local_only = cfg.repo_config.enabled and not cfg.demo and not cfg.repo_config_path,
+    issues_config = github and { provider = "github", enabled = true, host = remote.host, project = remote.project, cache_file = remote.issues_cache_file } or nil,
     changed = function() if self.win and vim.api.nvim_win_is_valid(self.win) and vim.api.nvim_win_get_buf(self.win) == self.buf
       and type(self.update) == "function" then self:update() else require("deskboard").redraw() end end })
   instances[self.buf] = self
@@ -47,16 +54,17 @@ function M.sections(self)
     views.rows, views.user, views.fetched_at = require("deskboard.demo").reviews(), { username = "demo" }, os.time()
     views:set_total("reviews", #views.rows)
   end
-  views:set_total("mine", #ticket_todos)
+  views:set_total("mine", views.issues and #views.issues.rows or #ticket_todos)
   views:set_reminders(personal_notes)
   local active = views.active
+  if active == "mine" then views:ensure_mine() end
   local selected_attr = active == "reviews" and "_review_selected" or active == "notes" and "_note_selected" or active == "reminders" and "_reminder_selected" or "_sprint_selected"
   if active == "notes" then
     views:set_notes(cfg.demo and require("deskboard.demo").notes()
       or cfg.notes.enabled and require("deskboard.notes").list({ reminders = {} }) or {})
   end
   local preview = require("deskboard.preview").attach(self, {
-    host = GITLAB_HOST,
+    provider = github and "github" or "gitlab", host = GITLAB_HOST,
     project = GITLAB_PROJECT,
     proxy = cfg.providers.gitlab.proxy,
     token_command = cfg.providers.gitlab.token_command,
@@ -87,7 +95,7 @@ function M.sections(self)
       callback = function() close_previews(); require("deskboard.views").release(self.buf); instances[self.buf] = nil end })
   end
   board.setup_highlights()
-  local branch = active == "mine" and REPO and vim.fn.systemlist({ "git", "-C", REPO, "branch", "--show-current" }) or {}
+  local branch = active == "mine" and not github and cfg.providers.jira.enabled and REPO and vim.fn.systemlist({ "git", "-C", REPO, "branch", "--show-current" }) or {}
   local current_ticket = vim.v.shell_error == 0
       and branch[1]
       and branch[1]:match("(%u[%u%d]*%-%d+)")
@@ -108,7 +116,11 @@ function M.sections(self)
     board_items, _page_info, panel_status = board.render_reminders({ state = views, width = board_width, frame = frame, on_open = require("deskboard.notes").open })
   elseif active == "notes" then
     board_items, _page_info, panel_status = board.render_notes({ state = views, width = board_width, frame = frame, on_open = require("deskboard.notes").open })
+  elseif views.issues then
+    board_items, _page_info, panel_status = board.render_issues({ state = views, width = board_width, frame = frame, on_open = vim.ui.open })
   else
+    local sync_status = sync.status()
+    if cfg.repo_error then sync_status.error = cfg.repo_error end
     board_items, _page_info, panel_status = board.render({
       project = GITLAB_PROJECT,
       page = views.pages.mine,
@@ -119,7 +131,7 @@ function M.sections(self)
       show_notes = false,
       current_ticket = current_ticket,
       width = board_width,
-      sync = sync.status(),
+      sync = sync_status,
       on_checkout = function(ticket)
         if not cfg.actions.checkout then
           vim.notify("Checkout is disabled; enable actions.checkout explicitly", vim.log.levels.INFO); return
@@ -143,7 +155,7 @@ function M.sections(self)
     vim.keymap.set("n", lhs, function()
       close_previews()
       views:toggle(delta)
-    end, { buffer = self.buf, nowait = true, desc = "Switch tickets / reviews / notes / reminders" })
+    end, { buffer = self.buf, nowait = true, desc = views.local_only and "Switch notes / reminders" or "Switch tickets / reviews / notes / reminders" })
   end
   vim.keymap.set("n", "a", function()
     if views.active ~= "reviews" then return end
@@ -228,13 +240,13 @@ function M.sections(self)
     local item = self:find(vim.api.nvim_win_get_cursor(self.win))
     if item and (item.personal_note or item.reminder) then
       item.action()
-    elseif item and item.review then
+    elseif item and (item.review or item.issue_number) then
       vim.ui.open(item.web_url)
     elseif item and item.ticket then
       vim.fn.jobstart({ "jira", "open", item.ticket })
       vim.notify("Opening " .. item.ticket .. " in Jira", vim.log.levels.INFO)
     end
-  end, { buffer = self.buf, nowait = true, desc = active == "reminders" and "Edit reminder source" or active == "notes" and "Open personal note" or active == "reviews" and "Open MR in GitLab" or "Open ticket in Jira" })
+  end, { buffer = self.buf, nowait = true, desc = active == "reminders" and "Edit reminder source" or active == "notes" and "Open personal note" or github and "Open in GitHub" or active == "reviews" and "Open MR in GitLab" or "Open ticket in Jira" })
   vim.keymap.set("n", "x", function()
     local item = self:find(vim.api.nvim_win_get_cursor(self.win))
     if not item or not (item.ticket or item.review) then
@@ -246,7 +258,7 @@ function M.sections(self)
     end
     local url = item.web_url or ("https://%s/%s/-/merge_requests/%s"):format(GITLAB_HOST, item.mr_project or GITLAB_PROJECT, item.mr_iid)
     vim.ui.open(url)
-    vim.notify("Opening !" .. item.mr_iid .. " in GitLab", vim.log.levels.INFO)
+    vim.notify("Opening " .. (github and "#" or "!") .. item.mr_iid .. (github and " in GitHub" or " in GitLab"), vim.log.levels.INFO)
   end, { buffer = self.buf, nowait = true, desc = "Open related MR in GitLab" })
 
   -- `p`: trigger pipeline run for the related MR.
@@ -316,6 +328,9 @@ function M.sections(self)
       views:refresh()
     elseif views.active == "notes" or views.active == "reminders" then
       Snacks.dashboard.update()
+    elseif views.issues then
+      preview:invalidate()
+      views:refresh_mine()
     else
       sync.refresh()
     end
@@ -376,7 +391,9 @@ function M.sections(self)
   -- `N`: quick jump to notes, or back to the previous panel.
   vim.keymap.set("n", "N", function()
     close_previews()
-    views:switch(views.active == "notes" and (views.previous or "mine") or "notes")
+    local previous = views.previous or "mine"
+    if not views:is_available(previous) then previous = "reminders" end
+    views:switch(views.active == "notes" and previous or "notes")
   end, { buffer = self.buf, nowait = true, desc = "Switch to personal notes / back" })
   vim.api.nvim_create_autocmd("CursorMoved", {
     group = augroup,
@@ -403,7 +420,8 @@ function M.sections(self)
           local id = item.id or item.ticket
           if id and id == selected and item._ then
             local line = self.lines[item._.row] or ""
-            local label = item.ticket or (item.review and ("!" .. item.mr_iid)) or item.note_title
+            local label = item.ticket or (item.issue_number and ("#" .. item.issue_number))
+              or (item.review and ((item.provider == "github" and "#" or "!") .. item.mr_iid)) or item.note_title
             local col = (line:find(label, 1, true) or 1) - 1
             vim.api.nvim_win_set_cursor(self.win, { item._.row, col })
             break
@@ -423,6 +441,7 @@ function M.refresh()
   local cfg = require("deskboard.config").get()
   local view = require("deskboard.views").get({ buf = owner.buf })
   if view.active == "reviews" then view:refresh()
+  elseif view.active == "mine" and view.issues then view:refresh_mine()
   elseif view.active == "mine" and cfg.providers.jira.enabled then require("deskboard.sync").refresh()
   elseif type(owner.update) == "function" then owner:update() end
 end
@@ -432,6 +451,12 @@ function M.redraw()
       owner:update()
     end
   end
+end
+function M.reset()
+  local owners = {}
+  for _, owner in pairs(instances) do owners[#owners + 1] = owner end
+  M.dispose()
+  return owners
 end
 function M.dispose()
   for buf, owner in pairs(instances) do

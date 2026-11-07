@@ -114,9 +114,10 @@ def error_reason(service, result):
 
 
 class Client:
-    def __init__(self, host, project, proxy, runner=subprocess.run, token_command=None, gitlab_enabled=True):
+    def __init__(self, host, project, proxy, runner=subprocess.run, token_command=None, gitlab_enabled=True, jira_project=None):
         self.host, self.project, self.runner = host, quote(project, safe=""), runner
         self.project_path = project
+        self.jira_project = jira_project
         self.gitlab_enabled = gitlab_enabled
         self.env = dict(os.environ)
         if proxy:
@@ -129,6 +130,8 @@ class Client:
                 self.env["GITLAB_TOKEN"] = credential.stdout.strip().splitlines()[0]
 
     def run(self, args, timeout=15, gitlab=False):
+        if args[0] == "jira" and self.jira_project:
+            args = [*args, "--project", self.jira_project]
         try:
             return self.runner(args, capture_output=True, text=True, timeout=timeout,
                                env=self.env if gitlab else None)
@@ -151,7 +154,7 @@ class Client:
         me = self.run(["jira", "me"], timeout=10)
         if me.returncode != 0 or not me.stdout.strip():
             return None, error_reason("Jira", me)
-        result = self.run(["jira", "sprint", "list", "--current", "--assignee=" + me.stdout.strip(),
+        result = self.run(["jira", "sprint", "list", "--current", "--jql", "assignee = currentUser()",
                            "--plain", "--no-headers", "--no-truncate", "--delimiter", "|",
                            "--columns", "key,status,type,created"])
         rows = []
@@ -159,6 +162,8 @@ class Client:
             for line in result.stdout.splitlines():
                 cols = [part.strip() for part in line.split("|")]
                 if len(cols) >= 4 and KEY.fullmatch(cols[0]):
+                    if self.jira_project and not cols[0].startswith(self.jira_project + "-"):
+                        return None, "Jira returned tickets from another project"
                     rows.append((cols[1].lower() == "done", cols[0], cols[1], cols[2]))
             if rows:
                 return rows, None
@@ -481,11 +486,14 @@ def main():
     parser.add_argument("--reminder", help="Explicit snapshot path (required unless --reviews)")
     parser.add_argument("--host", default=os.environ.get("GITLAB_HOST", "gitlab.com"))
     parser.add_argument("--project", default="")
+    parser.add_argument("--jira-project", help="Explicit Jira project key, independent of the GitLab project")
     parser.add_argument("--no-gitlab", action="store_true", help="Jira-only mode; no GitLab/credential calls")
     parser.add_argument("--token-command", type=json.loads, help="Optional JSON argv credential helper; never a token value")
     parser.add_argument("--reviews", action="store_true", help="Read-only JSON list of MRs assigned to me for review")
     parser.add_argument("--proxy", default=os.environ.get("SPRINT_GITLAB_PROXY", ""))
     args = parser.parse_args()
+    if args.jira_project and not re.fullmatch(r"[A-Z][A-Z0-9_]*", args.jira_project):
+        parser.error("Invalid Jira project key")
     if not args.reviews and not args.reminder:
         parser.error("--reminder is required for snapshot writes")
     if not args.no_gitlab and not args.project:
@@ -496,7 +504,7 @@ def main():
             or not all(isinstance(value, str) and value for value in args.token_command)):
         parser.error("--token-command must be a nonempty JSON string array")
     try:
-        client = Client(args.host, args.project, args.proxy, token_command=args.token_command, gitlab_enabled=not args.no_gitlab)
+        client = Client(args.host, args.project, args.proxy, token_command=args.token_command, gitlab_enabled=not args.no_gitlab, jira_project=args.jira_project)
         if args.reviews:
             report, error = client.reviews()
             report = report or {"version": 1, "ok": False, "warnings": [error]}

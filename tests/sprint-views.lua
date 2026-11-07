@@ -91,6 +91,27 @@ test("four panels cycle in both directions and retain their own selection", func
   state:toggle(-1); assert(state.active == "reviews" and state.pages.reviews == 2 and state:selection() == "team/repo!2")
 end)
 
+test("local-only dashboards expose only notes/reminders and cannot switch to hidden provider panels", function()
+  local requests = 0
+  local state = views.new({ local_only = true, enabled = true, cache_file = "/unused/cache.json", page_size = 1,
+    changed = function() end, fetch = function() requests = requests + 1 end,
+    issues_config = { enabled = true, fetch = function() requests = requests + 1 end } })
+  assert(state.active == "notes" and state:is_available("notes") and state:is_available("reminders"))
+  assert(not state:is_available("mine") and not state:is_available("reviews") and not state.issues)
+  state:set_notes({ { id = "n1" }, { id = "n2" } }); state:move(1); state:select("n2")
+  state:toggle(); assert(state.active == "reminders")
+  state:set_reminders({ { id = "r1" } }); state:select("r1")
+  state:toggle(); assert(state.active == "notes" and state.pages.notes == 2 and state:selection() == "n2")
+  state:toggle(-1); assert(state.active == "reminders" and state:selection() == "r1")
+  state:switch("mine"); state:switch("reviews"); assert(state.active == "reminders")
+  assert(not state:refresh() and not state:refresh_mine() and requests == 0)
+  for _, width in ipairs({ 16, 60, 124 }) do
+    local tabs = text(state:tabs(width))
+    assert(not tabs:find("My tickets", 1, true) and not tabs:find("Mine", 1, true) and not tabs:find("Reviews", 1, true))
+    assert(#state:tabs(width).text == (width >= 24 and 4 or 3), "Only two tabs and their separator/help should be rendered")
+  end
+end)
+
 test("author filtering is local, exact, paginated, and independent of other panels", function()
   local requests = 0
   local state = views.new({ page_size = 2, changed = function() end, fetch = function() requests = requests + 1 end })

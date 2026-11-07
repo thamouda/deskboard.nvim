@@ -8,7 +8,8 @@ local function forbidden() calls = calls + 1; error("Unexpected process/filesyst
 vim.system, vim.fn.jobstart, vim.fn.systemlist, vim.uv.fs_mkdir = forbidden, forbidden, forbidden, forbidden
 local ok, err = xpcall(function()
   core.setup()
-  assert(not cfg.get().providers.jira.enabled and not cfg.get().providers.gitlab.enabled and not cfg.writable())
+  assert(not cfg.get().providers.jira.enabled and not cfg.get().providers.gitlab.enabled and not cfg.get().providers.github.enabled and not cfg.writable())
+  assert(not cfg.get().repo_config.enabled, "Repo configs require explicit opt-in")
   assert(next(require("deskboard.notes").roots()) == nil)
   assert(not pcall(cfg.set, { notes = { enabled = true, allow_writes = "false" } }))
   assert(not cfg.writable(), "Invalid booleans must not enable writes or install partial config")

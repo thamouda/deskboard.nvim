@@ -358,6 +358,8 @@ local function card(title, content, outer_width, frame, now)
       item.jira_status = source.jira_status
       item.review, item.mr_project, item.web_url, item.id = source.review, source.mr_project, source.web_url, source.id
       item.review_label, item.review_metrics = source.review_label, source.review_metrics
+      item.provider, item.project = source.provider, source.project
+      item.issue_number, item.issue_title = source.issue_number, source.issue_title
       item.personal_note, item.note_title, item.note_data = source.personal_note, source.note_title, source.note_data
       item.reminder = source.reminder
       item.panel_header, item.header_slot, item.header_clock = source.panel_header, source.header_slot, source.header_clock
@@ -655,6 +657,48 @@ local REVIEW_CI = {
   manual = { "◷ manual", "◷", "Warning" }, none = { "—", "—", "Muted" },
 }
 
+function M.render_issues(opts)
+  local state, queue = opts.state, opts.state.issues
+  local outer = math.max(16, opts.frame and opts.frame.width or opts.width or M.width)
+  local inner = outer - 6
+  local function line(value, hl) return { text = { chunk(fit(value, inner), hl or "Muted") } } end
+  state:set_total("mine", #queue.rows)
+  local notice = require("deskboard.status").format({ title = "My GitHub issues", error = queue.error,
+    warnings = queue.warnings, running = queue.loading, cached = queue.fetched_at ~= nil,
+    stale = queue.from_cache or queue.fetched_at ~= nil and queue.now() - queue.fetched_at >= 300,
+    age = queue.fetched_at and math.max(0, queue.now() - queue.fetched_at) or nil })
+  local content = panel_header(opts, inner, {
+    [3] = line("GitHub · " .. queue.project, "Title"),
+    [4] = line(queue.user and ("Assigned to @" .. queue.user.username) or "Assigned issues"),
+    [6] = line(#queue.rows .. " open issues · R refresh"),
+  }, notice)
+  content[#content + 1] = { rule = true }
+  content[#content + 1] = line("MY ISSUES · " .. #queue.rows, "Title")
+  local id_width, status_width = math.min(8, math.max(2, math.floor(inner * 0.15))), inner >= 32 and 6 or 3
+  local title_width = math.max(1, inner - id_width - status_width - 2)
+  local function cells(id, status, title, header)
+    return { chunk(fit(id, id_width) .. string.rep(" ", math.max(0, id_width - width(fit(id, id_width)))) .. " ", header and "Muted" or "Accent"),
+      chunk(fit(status, status_width) .. string.rep(" ", math.max(0, status_width - width(fit(status, status_width)))) .. " ", "Muted"),
+      chunk(fit(title, title_width), header and "Muted" or "") }
+  end
+  content[#content + 1] = { text = cells("ISSUE", "STATE", "TITLE / LABELS", true) }
+  local visible, page = require("deskboard.views").paginate(queue.rows, state.pages.mine, state.size)
+  if #visible == 0 then content[#content + 1] = line(queue.fetched_at and "No assigned issues" or "No issue data yet") end
+  for _, issue in ipairs(visible) do
+    content[#content + 1] = { text = cells("#" .. issue.iid, issue.state or "?", issue.title .. (issue.labels and issue.labels ~= "" and (" · " .. issue.labels) or "")),
+      id = "github:" .. issue.project .. "#" .. issue.iid, provider = "github", project = issue.project,
+      issue_number = tostring(issue.iid), issue_title = issue.title, web_url = issue.web_url,
+      action = function() if opts.on_open then opts.on_open(issue.web_url) end end }
+  end
+  content[#content + 1] = { spacer = true }
+  content[#content + 1] = { rule = true }
+  content[#content + 1] = line(("Page %d/%d · %d–%d of %d"):format(page.page, page.pages, page.first, page.last, page.total))
+  for _, help in ipairs({ NAV_HELP, { { "o / Enter", "open issue" }, { "K / P", "details" }, { "R", "refresh" } } }) do
+    for _, pairs in ipairs(wrap_legend(help, inner)) do content[#content + 1] = { text = legend_chunks(pairs, inner) } end
+  end
+  return card("MY GITHUB ISSUES", content, outer, opts.frame, opts.now), page, notice
+end
+
 function M.render_reviews(opts)
   local state = opts.state
   local outer = math.max(16, opts.frame and opts.frame.width or opts.width or M.width)
@@ -671,11 +715,13 @@ function M.render_reviews(opts)
   local notice = require("deskboard.status").format({ title = "Reviews for me", error = state.error,
     warnings = state.warnings or (state.warning and { state.warning } or {}), warning_label = "Metadata incomplete",
     running = state.loading, cached = state.fetched_at ~= nil,
+    stale = state.from_cache or state.fetched_at ~= nil and state.now() - state.fetched_at >= 300,
     age = state.fetched_at and math.max(0, state.now() - state.fetched_at) or nil })
   content = panel_header(opts, inner, slots, notice)
   local visible, page = require("deskboard.views").paginate(filtered, state.pages.reviews, state.size)
   -- All ten columns stay present; widths depend on the frame, not the page.
   local sizes, labels, gap = review_columns(inner)
+  if state.provider == "github" then labels[1], labels[2] = "PR", sizes[2] >= 5 and "TITLE" or "TXT" end
     local function cells(values, header)
       local parts = {}
       for i, cell in ipairs(values) do
@@ -692,20 +738,22 @@ function M.render_reviews(opts)
       line(state.author and "No matches · A clears filter" or state.fetched_at and "No assigned reviews" or "No review data yet")
     end
     for _, mr in ipairs(visible) do
-      local label = M.review_label(mr)
+      local label = state.provider == "github" and mr.title or M.review_label(mr)
+      local prefix = state.provider == "github" and "#" or "!"
       local ci = REVIEW_CI[mr.ci] or { "?", "?", "Muted" }
       local ci_text = width(ci[1]) <= sizes[8] and ci[1] or ci[2]
       local mine = mr.my_approved == true and "✓" or mr.my_approved == false and "—" or "?"
       local approved = mine .. " (" .. review_count(mr.other_approvals) .. ")"
       content[#content + 1] = {
         text = cells({
-          { "!" .. mr.iid, "Accent" }, { label, "Key" }, { M.project_label(mr.project), "Muted" },
+          { prefix .. mr.iid, "Accent" }, { label, "Key" }, { M.project_label(mr.project), "Muted" },
           { mr.author ~= "" and ("@" .. mr.author) or "?", "" },
           { review_count(mr.commits), "Accent" }, { M.target_label(mr.target_branch), "" },
           thread_cell(mr.threads), { ci_text, ci[3] },
           { approved, mr.my_approved == true and "Success" or mr.my_approved == false and "Warning" or "Muted" }, thread_cell(mr.my_threads),
         }),
-        id = mr.project .. "!" .. mr.iid, review = true, mr_iid = tostring(mr.iid), mr_project = mr.project,
+        id = (state.provider == "github" and "github:" or "") .. mr.project .. prefix .. mr.iid,
+        provider = state.provider or "gitlab", review = true, mr_iid = tostring(mr.iid), mr_project = mr.project,
         review_label = label, web_url = mr.web_url,
         review_metrics = { threads = mr.threads, my_threads = mr.my_threads, fetched_at = state.fetched_at,
           my_approved = mr.my_approved, other_approvals = mr.other_approvals },
@@ -715,7 +763,8 @@ function M.render_reviews(opts)
   content[#content + 1] = { spacer = true }
   content[#content + 1] = { rule = true }
   line(("Page %d/%d · %d–%d of %d"):format(page.page, page.pages, page.first, page.last, page.total))
-  for _, help in ipairs({ NAV_HELP, REVIEW_HELP, FILTER_HELP }) do
+  local review_help = state.provider == "github" and { { "Enter/o/x", "open PR" }, { "K/P", "preview" }, { "R", "refresh" } } or REVIEW_HELP
+  for _, help in ipairs({ NAV_HELP, review_help, FILTER_HELP }) do
     for _, pairs in ipairs(wrap_legend(help, inner)) do
       content[#content + 1] = { text = legend_chunks(pairs, inner) }
     end

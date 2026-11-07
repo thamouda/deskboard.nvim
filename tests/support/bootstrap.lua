@@ -7,7 +7,7 @@ local sandbox = vim.fn.tempname() .. " deskboard fixture"
 vim.fn.mkdir(sandbox, "p")
 require("deskboard.config").set({
   providers = { jira = { enabled = true, snapshot = sandbox .. "/reminder.md", state_file = sandbox .. "/sync.json" },
-    gitlab = { enabled = true, host = "gitlab.example.invalid", project = "team/repo" } },
+    gitlab = { enabled = true, host = "gitlab.example.invalid", project = "team/repo", cache_file = sandbox .. "/reviews.json" } },
   reminders = { path = sandbox .. "/reminder.md" },
   notes = { enabled = true, allow_writes = true, roots = {}, legacy_globals = true, id_state_dir = sandbox .. "/ids" },
   actions = { checkout = true, jira_edit = true, pipeline = true, repo = sandbox .. "/repository" },

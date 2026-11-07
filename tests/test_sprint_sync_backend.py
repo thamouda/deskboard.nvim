@@ -141,6 +141,26 @@ class BackendTests(unittest.TestCase):
         value, _ = client.mr("TEST-42", ["TEST-42", "review", "Task", "1d", "!516", "🔴 2/15"])
         self.assertEqual(value["threads"], "🔴 2/15")
 
+    def test_explicit_jira_project_scopes_queries_and_rejects_other_project_rows(self):
+        key, calls = "NEWT-42", []
+        def runner(args, **kwargs):
+            calls.append(args)
+            self.assertEqual(args[-2:], ["--project", "NEWT"])
+            if args[1] == "me":
+                return subprocess.CompletedProcess(args, 0, "test-user\n", "")
+            self.assertIn("--jql", args)
+            self.assertIn("assignee = currentUser()", args)
+            return subprocess.CompletedProcess(args, 0, key + "|To review|Task|2026-01-01\n", "")
+        client = backend.Client("gitlab.example.invalid", "team/repo", None, runner, jira_project="NEWT")
+        rows, error = client.jira_tickets({})
+        self.assertIsNone(error)
+        self.assertEqual(rows[0][1], "NEWT-42")
+        self.assertEqual(len(calls), 2)
+        key = "OTHER-42"
+        rows, error = client.jira_tickets({})
+        self.assertIsNone(rows)
+        self.assertEqual(error, "Jira returned tickets from another project")
+
     def test_jira_me_cached_login_is_not_treated_as_successful_authentication(self):
         def respond(args):
             if args[1] == "me":

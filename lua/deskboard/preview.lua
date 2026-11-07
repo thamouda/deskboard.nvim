@@ -20,6 +20,12 @@ end
 -- Commands are argv arrays, never shell strings. Errors deliberately exclude
 -- stdout/stderr: credential helpers and CLI errors can contain private data.
 function M.fetch(opts, done)
+  if opts.provider == "github" then
+    if not require("deskboard.config").get().providers.github.enabled and not opts.run then
+      done({ fetched_at = os.time(), errors = { "GitHub provider is disabled" } }); return function() end
+    end
+    return require("deskboard.github").preview(opts, done)
+  end
   local run = opts.run or vim.system
   local jobs, data, pending, cancelled = {}, { errors = {} }, 1, false
   local function finished()
@@ -223,6 +229,7 @@ function M.merge_readiness(detail, approvals)
 end
 
 function M.lines(data, opts)
+  if opts.provider == "github" then return require("deskboard.github").lines(data, opts) end
   local jira, mr, approvals = object(data.jira), object(data.mr), object(data.approvals)
   local age = math.max(0, (opts.now or os.time)() - (data.fetched_at or 0))
   local lines = {
@@ -495,13 +502,14 @@ function Preview:close()
 end
 
 function Preview:update(item, force)
-  if not self:is_open() or not item or not (item.ticket or item.mr_iid) then
+  if not self:is_open() or not item or not (item.ticket or item.mr_iid or item.issue_number) then
     return
   end
   local previous_metrics = self.item and self.item.review_metrics
-  self.item = { ticket = item.ticket, mr_iid = item.mr_iid, jira_status = item.jira_status,
-    project = item.mr_project or item.project or self.opts.project, review_metrics = item.review_metrics }
-  local key = (item.ticket or "mr") .. ":" .. (self.item.project or "") .. ":" .. (item.mr_iid or "")
+  self.item = { ticket = item.ticket, mr_iid = item.mr_iid, issue_number = item.issue_number, provider = item.provider or self.opts.provider,
+    jira_status = item.jira_status, project = item.mr_project or item.project or self.opts.project, review_metrics = item.review_metrics }
+  local key = (self.item.provider or "jira-gitlab") .. ":" .. (self.opts.host or "") .. ":" .. (item.ticket or (item.issue_number and "issue" or "mr"))
+    .. ":" .. (self.item.project or "") .. ":" .. (item.issue_number or item.mr_iid or "")
   local saved = self.cache[key]
   local fresh = saved and os.time() - saved.fetched_at < (#saved.errors == 0 and 300 or 20)
   if not force and self.current == key and (self.loading or fresh) then
@@ -522,7 +530,7 @@ function Preview:update(item, force)
     table.insert(lines, 3, "> Cached preview" .. (fresh and "" or " · refreshing…"))
     self:write(lines)
   else
-    self:write({ "# " .. (item.ticket or ("!" .. item.mr_iid)), "", "Loading details…", "", "q / Esc close" })
+    self:write({ "# " .. (item.ticket or ((self.item.provider == "github" and "#" or "!") .. (item.issue_number or item.mr_iid))), "", "Loading details…", "", "q / Esc close" })
   end
   if changed then
     vim.api.nvim_win_set_cursor(self.win, { 1, 0 })
@@ -584,8 +592,8 @@ function Preview:open_window()
 end
 
 function Preview:show(item)
-  if not item or not (item.ticket or item.mr_iid) then
-    vim.notify("Select a ticket or merge request first", vim.log.levels.INFO)
+  if not item or not (item.ticket or item.mr_iid or item.issue_number) then
+    vim.notify("Select an issue, ticket or review first", vim.log.levels.INFO)
     return
   end
   if self:open_window() then
