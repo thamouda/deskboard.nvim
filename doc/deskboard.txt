@@ -35,6 +35,9 @@ Dashboard keys: Tab/S-Tab panels; [p/]p pages; ! status; R refresh.
 Reviews: a author filter, A clear. Notes: C category, S status, t tag, Q queue,
 A clear, F search, K/P details. Writable actions: + new, M status, v reviewed,
 V visibility, D delete; all require notes.allow_writes=true. B browser is optional.
+Reminders: Enter/o edits source; x toggles and saves the selected checkbox.
+Toggling requires notes.enabled=true and notes.allow_writes=true; unsaved or
+read-only source buffers block the write. Free-text rows are not toggled.
 
 SAFETY                                                 *deskboard-safety*
 Nothing is published to Confluence. Remote providers require explicit enablement.

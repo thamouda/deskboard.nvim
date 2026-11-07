@@ -20,7 +20,7 @@ local NOTE_ACTION_HELP = {
   { "+", "new" }, { "M", "status" }, { "v", "reviewed" }, { "V", "visibility" },
   { "F", "search" }, { "D", "delete" }, { "B", "browser" },
 }
-local REMINDER_HELP = { { "Enter/o", "edit reminder source" }, { "R", "refresh" } }
+local REMINDER_HELP = { { "Enter/o", "edit reminder source" }, { "x", "toggle status" }, { "R", "refresh" } }
 local LEGEND_SEP = " · "
 
 local function chunk(text, hl)
@@ -335,7 +335,8 @@ function M.frame(opts)
   local reviews = M.header_rows + 3 + size + 1 + 1 + #wrap_legend(NAV_HELP, inner) + #wrap_legend(REVIEW_HELP, inner) + #wrap_legend(FILTER_HELP, inner)
   local notes = M.header_rows + 3 + size + 1 + 1 + #wrap_legend(NAV_HELP, inner) + #wrap_legend(NOTES_HELP, inner)
     + #wrap_legend(NOTE_FILTER_HELP, inner) + #wrap_legend(NOTE_ACTION_HELP, inner)
-  return { width = outer, height = math.max(mine, reviews, notes) + 2, now = opts.now }
+  local reminders = M.header_rows + 3 + size + 1 + 1 + #wrap_legend(NAV_HELP, inner) + #wrap_legend(REMINDER_HELP, inner)
+  return { width = outer, height = math.max(mine, reviews, notes, reminders) + 2, now = opts.now }
 end
 
 local function card(title, content, outer_width, frame, now)
@@ -359,7 +360,7 @@ local function card(title, content, outer_width, frame, now)
       item.review, item.mr_project, item.web_url, item.id = source.review, source.mr_project, source.web_url, source.id
       item.review_label, item.review_metrics = source.review_label, source.review_metrics
       item.personal_note, item.note_title, item.note_data = source.personal_note, source.note_title, source.note_data
-      item.reminder = source.reminder
+      item.reminder, item.reminder_data = source.reminder, source.reminder_data
       item.panel_header, item.header_slot, item.header_clock = source.panel_header, source.header_slot, source.header_clock
     end
     result[#result + 1] = item
@@ -819,7 +820,7 @@ function M.render_reminders(opts)
     local marker = row.done and "✓ " or "○ "
     content[#content + 1] = {
       text = { chunk(marker, row.done and "Success" or "Muted"), chunk(fit(row.title, inner - width(marker)), "Title") },
-      reminder = true, id = row.id, note_title = row.title,
+      reminder = true, reminder_data = row, id = row.id, note_title = row.title,
       action = function() if opts.on_open then opts.on_open(row) end end,
     }
   end

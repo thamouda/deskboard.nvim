@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Fix dashboard reminder status toggling with `x`, guarded by local write opt-ins
+  and protection for unsaved source edits.
+
 ## v0.1.0 — 2026-11-07
 
 First public release, published at https://github.com/thamouda/deskboard.nvim.

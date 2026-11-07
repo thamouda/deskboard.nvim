@@ -14,6 +14,7 @@ function M.sections(self)
     local lnum = 0
     for line in f:lines() do
       lnum = lnum + 1
+      local source_line = line
       line = line:match("^%s*(.-)%s*$")
       if line ~= "" then
         local name, start, stop = line:match("^SPRINT|(.-)|(.-)|(.-)$")
@@ -26,7 +27,7 @@ function M.sections(self)
         elseif not line:match("^synced %d%d:%d%d$") then
           personal_notes[#personal_notes + 1] = {
             id = "reminder:" .. lnum, title = (text or line):gsub("^#+%s*", ""),
-            path = reminder, lnum = lnum, done = done == "x" or done == "X",
+            path = reminder, lnum = lnum, source_line = source_line, done = done == "x" or done == "X",
           }
         end
       end
@@ -237,6 +238,13 @@ function M.sections(self)
   end, { buffer = self.buf, nowait = true, desc = active == "reminders" and "Edit reminder source" or active == "notes" and "Open personal note" or active == "reviews" and "Open MR in GitLab" or "Open ticket in Jira" })
   vim.keymap.set("n", "x", function()
     local item = self:find(vim.api.nvim_win_get_cursor(self.win))
+    if views.active == "reminders" then
+      if item and item.reminder and require("deskboard.reminders").toggle_status(item.reminder_data) then
+        close_previews()
+        M.redraw()
+      end
+      return
+    end
     if not item or not (item.ticket or item.review) then
       return
     end
@@ -247,7 +255,7 @@ function M.sections(self)
     local url = item.web_url or ("https://%s/%s/-/merge_requests/%s"):format(GITLAB_HOST, item.mr_project or GITLAB_PROJECT, item.mr_iid)
     vim.ui.open(url)
     vim.notify("Opening !" .. item.mr_iid .. " in GitLab", vim.log.levels.INFO)
-  end, { buffer = self.buf, nowait = true, desc = "Open related MR in GitLab" })
+  end, { buffer = self.buf, nowait = true, desc = active == "reminders" and "Toggle reminder status" or "Open related MR in GitLab" })
 
   -- `p`: trigger pipeline run for the related MR.
   -- Gets the MR's source branch and runs a new pipeline on it.

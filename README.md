@@ -118,6 +118,9 @@ Buffer-local: Tab / Shift-Tab cycles panels; `[p` / `]p` or PageUp/PageDown page
   queues. C/S/t/Q filter category/status/tag/queue; A clears; F searches; K/P
   details. `+`, M, v, V and D are writable actions and require explicit opt-in.
 - Reminders: separate quick captures; Enter/o edits source, not article metadata.
+  `x` toggles the selected Markdown checkbox and saves it locally, then refreshes
+  the dashboard. Requires `notes.enabled` and `notes.allow_writes`; unsaved or
+  read-only source buffers block the write. Free-text rows are not toggled.
 
 Commands are namespaced: `:Deskboard`, `:DeskboardRefresh`,
 `:DeskboardNotesNew`, `:DeskboardNotesStatus`, `:DeskboardNotesReviewed`,
