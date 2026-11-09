@@ -2,6 +2,7 @@
 -- actions are supplied by the dashboard so navigation/checkout stay unchanged.
 local M = { width = 124, header_rows = 5 }
 local H = "Deskboard"
+local dashboard_customize = require("deskboard.dashboard")
 -- Match Snacks' context-independent cell widths, including CJK characters.
 local width = vim.api.nvim_strwidth
 -- Keymap legends: {key, description} pairs. Rendered with the key in a
@@ -717,6 +718,7 @@ function M.render_reviews(opts)
     running = state.loading, cached = state.fetched_at ~= nil,
     stale = state.from_cache or state.fetched_at ~= nil and state.now() - state.fetched_at >= 300,
     age = state.fetched_at and math.max(0, state.now() - state.fetched_at) or nil })
+  dashboard_customize.customize_reviews_title(notice, state, #filtered)
   content = panel_header(opts, inner, slots, notice)
   local visible, page = require("deskboard.views").paginate(filtered, state.pages.reviews, state.size)
   -- All ten columns stay present; widths depend on the frame, not the page.
@@ -853,6 +855,7 @@ function M.render_reminders(opts)
   local done = 0
   for _, row in ipairs(state.reminders) do done = done + (row.done and 1 or 0) end
   local notice = require("deskboard.status").format({ title = "Reminders", local_only = true })
+  dashboard_customize.customize_reminders_title(notice, state)
   content = panel_header(opts, inner, {
     [3] = { text = { chunk(fit("QUICK CAPTURES", inner), "Title") } },
     [4] = { text = { chunk(fit(("%d open · %d done"):format(#state.reminders - done, done), inner), "Muted") } },

@@ -93,6 +93,42 @@ Note creation/status/visibility/index/trash/ID operations require
 `notes.enabled` **and** `notes.allow_writes`. Remote Jira edits and pipelines have
 separate flags. Demo mode refuses any enabled live provider or writable action.
 
+## Dashboard Customization
+
+Dashboard sections (reviews, reminders, etc.) can be customized with:
+- Custom title formatting (e.g., "My Reviews (5)" instead of "Reviews for me")
+- Prettier display labels with counts and emojis
+- Interactive keymaps (e.g., Space/x to toggle reminders done/undone)
+
+Call `deskboard.dashboard.setup()` **after** `deskboard.setup()` with options:
+
+```lua
+require("deskboard").dashboard.setup({
+  -- Custom review title: function(count, state) or format string
+  reviews_title = function(count)
+    return string.format("My Reviews (%d)", count)
+  end,
+
+  -- Custom reminders title with open/done counts
+  reminders_title = function(open, done)
+    return string.format("📝 Reminders · %d open, %d done", open, done)
+  end,
+
+  -- Enable reminder toggle keymaps (default: true)
+  enable_reminder_toggle = true,
+
+  -- Keymaps to toggle reminders (default: {"<Space>", "x"})
+  reminder_toggle_keys = { "<Space>", "x" },
+})
+```
+
+**Reminder toggle:** In the dashboard, press Space or x on any reminder line to
+toggle it between done and undone. The reminders file is updated immediately
+(requires `reminders.path` set and `[ ]`/`[x]` checkbox format). Dashboard
+automatically refreshes to show the new state.
+
+See `examples/customization.lua` for a complete example.
+
 ## Per-repository providers
 
 Enable repository discovery explicitly in your existing setup options:

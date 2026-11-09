@@ -1,6 +1,9 @@
 local M = {}
 local timer, base_options
 
+-- Dashboard customization module (for titles, display, and interactive features)
+M.dashboard = require("deskboard.dashboard")
+
 function M.redraw() require("deskboard.adapter").redraw() end
 function M.sections(owner) return require("deskboard.adapter").sections(owner) end
 function M.open()
